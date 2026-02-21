@@ -13,7 +13,7 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 app = Flask(__name__)
 
 
-GROQ_API_KEY = "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"  
+GROQ_API_KEY = "gsk_uD7pVGG8i7X4tmCdvArbWGdyb3FYe6SndtxU8QMxxxxxxxx"  
 GROQ_MODEL   = "llama-3.3-70b-versatile"
 
 model         = pickle.load(open("disease_model.pkl", "rb"))
