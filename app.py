@@ -12,8 +12,8 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 
 app = Flask(__name__)
 
-# ── Groq API key — lives ONLY on the server, never in HTML ───────────────────
-GROQ_API_KEY = "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"  # Regenerate this key!
+
+GROQ_API_KEY = "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"  
 GROQ_MODEL   = "llama-3.3-70b-versatile"
 
 model         = pickle.load(open("disease_model.pkl", "rb"))
