@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediSense AI – Medical Assistant Chat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Serif+Display&family=Noto+Sans+Devanagari:wght@400;600&family=Noto+Sans+Bengali:wght@400;600&family=Noto+Sans+Tamil:wght@400;600&family=Noto+Sans+Telugu:wght@400;600&family=Noto+Sans+Kannada:wght@400;600&family=Noto+Sans+Malayalam:wght@400;600&family=Noto+Sans+Gujarati:wght@400;600&family=Noto+Sans+Gurmukhi:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#080d1a; --surface:#0f1729; --card:#141e33; --card2:#1a2540;
+    --border:rgba(99,130,255,0.14); --accent:#6382ff; --accent2:#38d9a9;
+    --accent3:#f87171; --text:#e8edf8; --muted:#6b7a9e;
+    --user-bg:linear-gradient(135deg,#6382ff,#8aa3ff); --ai-bg:#141e33;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+  body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:radial-gradient(ellipse 60% 50% at 15% 5%,rgba(99,130,255,0.12) 0%,transparent 55%),
+               radial-gradient(ellipse 55% 45% at 85% 90%,rgba(56,217,169,0.08) 0%,transparent 55%);}
+
+  /* ── Nav ── */
+  nav{position:relative;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 22px;height:60px;flex-shrink:0;background:rgba(8,13,26,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);}
+  .logo{font-family:'DM Serif Display',serif;font-size:1.2rem;text-decoration:none;color:var(--text);}
+  .logo span{color:var(--accent);}
+  .nav-links{display:flex;gap:7px;align-items:center;}
+  .nav-btn{padding:6px 12px;border-radius:7px;font-family:'Sora',sans-serif;font-size:0.77rem;font-weight:500;cursor:pointer;border:1px solid var(--border);text-decoration:none;transition:all .2s;background:rgba(99,130,255,0.07);color:#8aa3ff;}
+  .nav-btn.green{background:rgba(56,217,169,0.07);color:var(--accent2);}
+  .nav-btn.red{background:rgba(248,113,113,0.07);color:#fca5a5;border-color:rgba(248,113,113,0.2);}
+  .nav-btn.active{background:rgba(99,130,255,0.18);border-color:rgba(99,130,255,0.4);}
+  .nav-btn:hover{filter:brightness(1.2);transform:translateY(-1px);}
+
+  /* ── Language picker in nav ── */
+  .lang-picker-wrap{position:relative;}
+  .lang-trigger{
+    display:flex;align-items:center;gap:6px;
+    padding:6px 12px;border-radius:7px;cursor:pointer;
+    border:1px solid rgba(56,217,169,0.3);
+    background:rgba(56,217,169,0.08);color:var(--accent2);
+    font-family:'Sora',sans-serif;font-size:0.77rem;font-weight:600;
+    transition:all .2s;user-select:none;
+  }
+  .lang-trigger:hover{background:rgba(56,217,169,0.15);}
+  .lang-trigger .flag{font-size:1rem;}
+  .lang-trigger .arrow{font-size:0.6rem;transition:transform .2s;}
+  .lang-picker-wrap.open .arrow{transform:rotate(180deg);}
+
+  .lang-dropdown{
+    position:absolute;top:calc(100% + 8px);right:0;
+    background:var(--card);border:1px solid var(--border);
+    border-radius:12px;padding:8px;width:220px;
+    box-shadow:0 16px 48px rgba(0,0,0,0.5);
+    z-index:500;
+    opacity:0;transform:translateY(-8px) scale(0.97);
+    pointer-events:none;transition:all .18s ease;
+  }
+  .lang-picker-wrap.open .lang-dropdown{opacity:1;transform:translateY(0) scale(1);pointer-events:all;}
+
+  .lang-section-label{font-size:0.63rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;padding:4px 8px 6px;display:block;}
+  .lang-opt{
+    display:flex;align-items:center;gap:10px;width:100%;
+    padding:8px 10px;border-radius:8px;border:none;
+    background:transparent;color:var(--text);
+    font-family:'Sora',sans-serif;font-size:0.8rem;
+    cursor:pointer;text-align:left;transition:all .15s;
+  }
+  .lang-opt:hover{background:var(--card2);}
+  .lang-opt.selected{background:rgba(56,217,169,0.1);color:var(--accent2);}
+  .lang-opt .lf{font-size:1.1rem;flex-shrink:0;}
+  .lang-opt .ln{flex:1;}
+  .lang-opt .ln small{display:block;font-size:0.68rem;color:var(--muted);margin-top:1px;}
+  .lang-opt .check{color:var(--accent2);font-size:0.75rem;opacity:0;}
+  .lang-opt.selected .check{opacity:1;}
+
+  /* ── Layout ── */
+  .chat-layout{position:relative;z-index:1;display:flex;flex:1;overflow:hidden;}
+
+  /* ── Sidebar ── */
+  .sidebar{width:272px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+  .sidebar-header{padding:18px 18px 14px;border-bottom:1px solid var(--border);}
+  .sidebar-label{display:inline-flex;align-items:center;gap:5px;background:rgba(99,130,255,0.1);border:1px solid rgba(99,130,255,0.22);color:#8aa3ff;font-size:0.67rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:100px;margin-bottom:9px;}
+  .sidebar-title{font-family:'DM Serif Display',serif;font-size:1.05rem;margin-bottom:3px;}
+  .sidebar-sub{color:var(--muted);font-size:0.71rem;line-height:1.5;}
+
+  /* Current lang badge in sidebar */
+  .lang-badge{display:inline-flex;align-items:center;gap:5px;margin-top:8px;padding:4px 10px;border-radius:100px;background:rgba(56,217,169,0.08);border:1px solid rgba(56,217,169,0.2);font-size:0.7rem;color:var(--accent2);font-weight:600;}
+
+  .quick-topics{padding:12px 16px;border-bottom:1px solid var(--border);overflow-y:auto;flex:1;}
+  .quick-label{font-size:0.66rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;margin-bottom:9px;}
+  .topic-btn{display:flex;align-items:center;gap:8px;width:100%;padding:8px 11px;margin-bottom:5px;background:var(--card);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:'Sora',sans-serif;font-size:0.76rem;cursor:pointer;text-align:left;transition:all .2s;}
+  .topic-btn:hover{background:var(--card2);border-color:rgba(99,130,255,0.3);transform:translateX(2px);}
+  .topic-btn .icon{font-size:0.95rem;flex-shrink:0;}
+
+  .disclaimer-box{margin:12px 16px;background:rgba(248,113,113,0.07);border:1px solid rgba(248,113,113,0.18);border-radius:9px;padding:10px 12px;font-size:0.7rem;color:#fca5a5;line-height:1.5;}
+  .disclaimer-box strong{display:block;margin-bottom:2px;}
+
+  .sidebar-footer{flex-shrink:0;padding:12px 16px;border-top:1px solid var(--border);}
+  .clear-btn{width:100%;padding:8px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'Sora',sans-serif;font-size:0.76rem;cursor:pointer;transition:all .2s;}
+  .clear-btn:hover{background:var(--card);color:var(--text);}
+
+  /* ── Chat main ── */
+  .chat-main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+  .chat-header{padding:14px 22px;border-bottom:1px solid var(--border);background:rgba(8,13,26,0.8);backdrop-filter:blur(10px);display:flex;align-items:center;gap:13px;flex-shrink:0;}
+  .ai-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:1.15rem;flex-shrink:0;box-shadow:0 0 0 3px rgba(99,130,255,0.2);}
+  .ai-info h3{font-weight:600;font-size:0.92rem;}
+  .ai-info p{color:var(--accent2);font-size:0.72rem;font-weight:500;display:flex;align-items:center;gap:5px;}
+  .status-dot{width:6px;height:6px;border-radius:50%;background:var(--accent2);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+  /* lang indicator in header */
+  .header-lang{margin-left:auto;display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:100px;background:rgba(56,217,169,0.08);border:1px solid rgba(56,217,169,0.2);font-size:0.73rem;color:var(--accent2);font-weight:600;cursor:pointer;transition:all .2s;}
+  .header-lang:hover{background:rgba(56,217,169,0.15);}
+
+  /* ── Messages ── */
+  .messages{flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:14px;}
+  .messages::-webkit-scrollbar{width:4px;}
+  .messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+  .msg-row{display:flex;align-items:flex-end;gap:9px;animation:msgIn .3s ease both;}
+  @keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .msg-row.user{flex-direction:row-reverse;}
+  .msg-avatar{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.8rem;}
+  .msg-avatar.ai{background:linear-gradient(135deg,var(--accent),var(--accent2));}
+  .msg-avatar.user{background:linear-gradient(135deg,#6382ff,#8aa3ff);}
+  .msg-bubble{max-width:72%;padding:12px 15px;border-radius:16px;font-size:0.87rem;line-height:1.65;}
+  .msg-row.ai .msg-bubble{background:var(--ai-bg);border:1px solid var(--border);border-bottom-left-radius:4px;color:var(--text);}
+  .msg-row.user .msg-bubble{background:var(--user-bg);border-bottom-right-radius:4px;color:#fff;}
+  .msg-bubble strong{font-weight:600;}
+  .msg-bubble ul,.msg-bubble ol{padding-left:18px;margin:6px 0;}
+  .msg-bubble li{margin-bottom:3px;}
+  .msg-bubble p{margin-bottom:6px;}
+  .msg-bubble p:last-child{margin-bottom:0;}
+  .msg-time{font-size:0.63rem;color:var(--muted);margin-top:4px;}
+  .msg-row.user .msg-time{text-align:right;}
+  .msg-row.ai .msg-time{text-align:left;}
+
+  /* Typing */
+  .typing-indicator{display:flex;align-items:center;gap:10px;padding:0;opacity:0;transition:opacity .2s;}
+  .typing-indicator.visible{opacity:1;}
+  .typing-dots{display:flex;gap:4px;align-items:center;background:var(--ai-bg);border:1px solid var(--border);padding:11px 15px;border-radius:16px;border-bottom-left-radius:4px;}
+  .typing-dots span{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:dot 1.4s infinite;}
+  .typing-dots span:nth-child(2){animation-delay:.2s;}
+  .typing-dots span:nth-child(3){animation-delay:.4s;}
+  @keyframes dot{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-6px);opacity:1}}
+
+  /* Welcome */
+  .welcome-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;text-align:center;margin:auto;max-width:460px;width:100%;}
+  .welcome-card .wicon{font-size:2.6rem;margin-bottom:12px;}
+  .welcome-card h2{font-family:'DM Serif Display',serif;font-size:1.35rem;margin-bottom:7px;}
+  .welcome-card p{color:var(--muted);font-size:0.81rem;line-height:1.6;margin-bottom:16px;}
+  .starter-chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;}
+  .starter-chip{padding:6px 13px;background:rgba(99,130,255,0.08);border:1px solid rgba(99,130,255,0.22);border-radius:100px;color:#8aa3ff;font-size:0.75rem;cursor:pointer;transition:all .2s;}
+  .starter-chip:hover{background:rgba(99,130,255,0.16);}
+
+  /* Input */
+  .input-area{padding:14px 22px;border-top:1px solid var(--border);background:rgba(8,13,26,0.9);backdrop-filter:blur(12px);flex-shrink:0;}
+  .emergency-banner{display:none;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);border-radius:10px;padding:9px 14px;margin-bottom:10px;font-size:0.77rem;color:#fca5a5;align-items:center;gap:9px;}
+  .emergency-banner.show{display:flex;}
+  .emergency-banner a{color:#f87171;font-weight:700;}
+  .input-row{display:flex;gap:9px;align-items:flex-end;background:var(--card);border:1px solid var(--border);border-radius:13px;padding:9px 13px;transition:border-color .2s;}
+  .input-row:focus-within{border-color:var(--accent);}
+  #msgInput{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'Sora',sans-serif;font-size:0.87rem;resize:none;max-height:130px;line-height:1.5;padding:3px 0;}
+  #msgInput::placeholder{color:var(--muted);}
+  .send-btn{width:36px;height:36px;border-radius:9px;flex-shrink:0;background:linear-gradient(135deg,var(--accent),#8aa3ff);border:none;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;font-size:0.95rem;}
+  .send-btn:hover:not(:disabled){transform:scale(1.08);box-shadow:0 4px 16px rgba(99,130,255,0.4);}
+  .send-btn:disabled{opacity:.4;cursor:not-allowed;}
+  .input-hint{text-align:center;font-size:0.66rem;color:var(--muted);margin-top:7px;}
+
+  /* RTL support for Urdu */
+  body.rtl .msg-row.user{flex-direction:row;}
+  body.rtl .msg-row.ai{flex-direction:row-reverse;}
+  body.rtl .msg-row.user .msg-bubble{border-bottom-right-radius:16px;border-bottom-left-radius:4px;}
+  body.rtl .msg-row.ai .msg-bubble{border-bottom-left-radius:16px;border-bottom-right-radius:4px;}
+  body.rtl #msgInput{direction:rtl;text-align:right;}
+
+  @media(max-width:768px){
+    .sidebar{display:none;}
+    .lang-trigger .lname{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo">Medi<span>Sense</span></a>
+  <div class="nav-links">
+    <a href="/"          class="nav-btn">🏠 Symptoms</a>
+    <a href="/report"    class="nav-btn green">📄 Prescription</a>
+    <a href="/medicine"  class="nav-btn green">💊 Medicine</a>
+    <a href="/hospitals" class="nav-btn red">🚑 Hospitals</a>
+    <a href="/chat"      class="nav-btn active">🤖 AI Chat</a>
+
+    <!-- ── Language Picker ── -->
+    <div class="lang-picker-wrap" id="langPickerWrap">
+      <div class="lang-trigger" onclick="toggleLangDropdown()" id="langTrigger">
+        <span class="flag" id="triggerFlag">🇬🇧</span>
+        <span class="lname" id="triggerName">English</span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="lang-dropdown" id="langDropdown">
+        <span class="lang-section-label">🌐 Choose Language</span>
+        <!-- options injected by JS -->
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="chat-layout">
+
+  <!-- ── Sidebar ── -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-label">Medical Assistant</div>
+      <div class="sidebar-title" id="sbTitle">Ask Me Anything</div>
+      <div class="sidebar-sub" id="sbSub">Your personal AI health guide — available 24/7</div>
+      <div class="lang-badge" id="sbLangBadge">🇬🇧 English</div>
+    </div>
+
+    <div class="quick-topics">
+      <div class="quick-label" id="sbTopicsLabel">Quick Topics</div>
+      <div id="topicBtns"></div>
+    </div>
+
+    <div class="disclaimer-box">
+      <strong id="disclaimerTitle">⚠️ Medical Disclaimer</strong>
+      <span id="disclaimerText">This AI provides general health information only and is not a substitute for professional medical advice, diagnosis, or treatment.</span>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="clear-btn" id="clearBtn" onclick="clearChat()">🗑 Clear Conversation</button>
+    </div>
+  </div>
+
+  <!-- ── Chat main ── -->
+  <div class="chat-main">
+    <div class="chat-header">
+      <div class="ai-avatar">🩺</div>
+      <div class="ai-info">
+        <h3 id="headerTitle">MediSense Medical Assistant</h3>
+        <p><span class="status-dot"></span> <span id="headerStatus">Online — Powered by Llama 3.3 (Groq)</span></p>
+      </div>
+      <div class="header-lang" onclick="toggleLangDropdown()" id="headerLangBadge">
+        <span id="hlFlag">🇬🇧</span> <span id="hlName">English</span>
+      </div>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="welcome-card" id="welcomeCard">
+        <div class="wicon">🩺</div>
+        <h2 id="welcomeTitle">Hello! How can I help you today?</h2>
+        <p id="welcomeSubtitle">I'm your AI medical assistant. Ask me about symptoms, medicines, nutrition, mental health, or any health concern. I'm here to help 24/7.</p>
+        <div class="starter-chips" id="starterChips"></div>
+      </div>
+    </div>
+
+    <div style="padding:0 22px 4px;">
+      <div class="typing-indicator" id="typingIndicator">
+        <div style="width:27px;height:27px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:0.72rem;flex-shrink:0;">🩺</div>
+        <div class="typing-dots"><span></span><span></span><span></span></div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="emergency-banner" id="emergencyBanner">
+        🚨 <span id="emergencyText">If this is a medical emergency, call <a href="tel:112">112</a> or <a href="tel:108">108 (Ambulance)</a> immediately.</span>
+      </div>
+      <div class="input-row">
+        <textarea id="msgInput" rows="1"
+          onkeydown="handleKey(event)"
+          oninput="autoResize(this); checkEmergency(this.value)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+      </div>
+      <div class="input-hint" id="inputHint">Press Enter to send · Shift+Enter for new line</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// LANGUAGE DATA
+// ═══════════════════════════════════════════════════════════
+const LANGUAGES = [
+  {
+    code:'en', name:'English', nativeName:'English', flag:'🇬🇧', rtl:false,
+    fontFamily:"'Sora', sans-serif",
+    aiInstruction:"Respond in English.",
+    ui:{
+      sbTitle:"Ask Me Anything", sbSub:"Your personal AI health guide — available 24/7",
+      sbTopicsLabel:"Quick Topics", clearBtn:"🗑 Clear Conversation",
+      disclaimerTitle:"⚠️ Medical Disclaimer",
+      disclaimerText:"This AI provides general health information only and is not a substitute for professional medical advice.",
+      headerTitle:"MediSense Medical Assistant", headerStatus:"Online — Powered by Llama 3.3 (Groq)",
+      welcomeTitle:"Hello! How can I help you today?",
+      welcomeSubtitle:"I'm your AI medical assistant. Ask me about symptoms, medicines, nutrition, mental health, or any health concern.",
+      placeholder:"Ask anything about your health…",
+      inputHint:"Press Enter to send · Shift+Enter for new line",
+      emergencyText:'If this is a medical emergency, call <a href="tel:112">112</a> or <a href="tel:108">108 (Ambulance)</a> immediately.',
+      topics:[
+        {icon:"🩸",label:"Diabetes symptoms",   q:"What are the symptoms of diabetes?"},
+        {icon:"❤️",label:"Blood pressure tips",  q:"How can I lower my blood pressure naturally?"},
+        {icon:"🥗",label:"Immune boosting diet", q:"What should I eat to boost my immune system?"},
+        {icon:"🧠",label:"Anxiety & mental health",q:"I have been feeling very anxious lately. What can help?"},
+        {icon:"🫀",label:"Heart attack signs",   q:"What are the signs of a heart attack?"},
+        {icon:"😴",label:"Sleep & wellness",     q:"How much sleep do I need and why is it important?"},
+        {icon:"💊",label:"Daily supplements",    q:"What vitamins and supplements should I take daily?"},
+        {icon:"🩹",label:"First aid basics",     q:"How do I do basic first aid for a wound?"},
+      ],
+      starters:[
+        {icon:"🌡",label:"Fever & headache",q:"I have a fever and headache. What could it be?"},
+        {icon:"🩸",label:"Managing diabetes",q:"How do I manage type 2 diabetes?"},
+        {icon:"🥗",label:"Cholesterol diet",q:"What foods should I avoid with high cholesterol?"},
+        {icon:"😴",label:"Stress & sleep",  q:"I feel very stressed and cannot sleep. What should I do?"},
+        {icon:"🦠",label:"COVID symptoms",  q:"What are early signs of COVID-19?"},
+        {icon:"⚖️",label:"Weight loss",     q:"How can I lose weight safely?"},
+      ]
+    }
+  },
+  {
+    code:'hi', name:'Hindi', nativeName:'हिंदी', flag:'🇮🇳', rtl:false,
+    fontFamily:"'Noto Sans Devanagari', sans-serif",
+    aiInstruction:"You must respond ONLY in Hindi (Devanagari script). Do not use English except for medical terms when necessary.",
+    ui:{
+      sbTitle:"कुछ भी पूछें", sbSub:"आपका व्यक्तिगत AI स्वास्थ्य सहायक — 24/7 उपलब्ध",
+      sbTopicsLabel:"त्वरित विषय", clearBtn:"🗑 बातचीत साफ़ करें",
+      disclaimerTitle:"⚠️ चिकित्सा अस्वीकरण",
+      disclaimerText:"यह AI केवल सामान्य स्वास्थ्य जानकारी प्रदान करता है, यह पेशेवर चिकित्सा सलाह का विकल्प नहीं है।",
+      headerTitle:"MediSense चिकित्सा सहायक", headerStatus:"ऑनलाइन — Llama 3.3 (Groq) द्वारा संचालित",
+      welcomeTitle:"नमस्ते! आज मैं आपकी कैसे मदद कर सकता हूँ?",
+      welcomeSubtitle:"मैं आपका AI स्वास्थ्य सहायक हूँ। लक्षण, दवाइयाँ, पोषण या मानसिक स्वास्थ्य के बारे में पूछें।",
+      placeholder:"अपने स्वास्थ्य के बारे में कुछ भी पूछें…",
+      inputHint:"भेजने के लिए Enter दबाएँ · नई पंक्ति के लिए Shift+Enter",
+      emergencyText:'यदि यह चिकित्सा आपातकाल है, तुरंत <a href="tel:112">112</a> या <a href="tel:108">108 (एम्बुलेंस)</a> पर कॉल करें।',
+      topics:[
+        {icon:"🩸",label:"मधुमेह के लक्षण",  q:"मधुमेह के लक्षण क्या हैं?"},
+        {icon:"❤️",label:"रक्तचाप के उपाय",  q:"रक्तचाप को स्वाभाविक रूप से कैसे कम करें?"},
+        {icon:"🥗",label:"रोग प्रतिरोधक आहार",q:"रोग प्रतिरोधक क्षमता बढ़ाने के लिए क्या खाएं?"},
+        {icon:"🧠",label:"चिंता और मानसिक स्वास्थ्य",q:"मुझे बहुत चिंता हो रही है, क्या मदद कर सकता है?"},
+        {icon:"🫀",label:"दिल के दौरे के संकेत",q:"दिल के दौरे के संकेत क्या हैं?"},
+        {icon:"😴",label:"नींद और स्वास्थ्य", q:"मुझे कितनी नींद चाहिए और यह क्यों जरूरी है?"},
+        {icon:"💊",label:"दैनिक पूरक",         q:"रोजाना कौन से विटामिन लेने चाहिए?"},
+        {icon:"🩹",label:"प्राथमिक चिकित्सा",   q:"घाव पर प्राथमिक चिकित्सा कैसे करें?"},
+      ],
+      starters:[
+        {icon:"🌡",label:"बुखार और सिरदर्द",q:"मुझे बुखार और सिरदर्द है, यह क्या हो सकता है?"},
+        {icon:"🩸",label:"मधुमेह प्रबंधन",  q:"टाइप 2 मधुमेह का प्रबंधन कैसे करें?"},
+        {icon:"🥗",label:"कोलेस्ट्रॉल आहार",q:"उच्च कोलेस्ट्रॉल में क्या नहीं खाना चाहिए?"},
+        {icon:"😴",label:"तनाव और नींद",    q:"मुझे तनाव है और नींद नहीं आती, क्या करें?"},
+      ]
+    }
+  },
+  {
+    code:'bn', name:'Bengali', nativeName:'বাংলা', flag:'🇧🇩', rtl:false,
+    fontFamily:"'Noto Sans Bengali', sans-serif",
+    aiInstruction:"You must respond ONLY in Bengali (Bangla script). Do not use English except for medical terms when necessary.",
+    ui:{
+      sbTitle:"যেকোনো কিছু জিজ্ঞাসা করুন", sbSub:"আপনার ব্যক্তিগত AI স্বাস্থ্য সহকারী — ২৪/৭ উপলব্ধ",
+      sbTopicsLabel:"দ্রুত বিষয়", clearBtn:"🗑 কথোপকথন মুছুন",
+      disclaimerTitle:"⚠️ চিকিৎসা দাবিত্যাগ",
+      disclaimerText:"এই AI শুধুমাত্র সাধারণ স্বাস্থ্য তথ্য প্রদান করে, এটি পেশাদার চিকিৎসা পরামর্শের বিকল্প নয়।",
+      headerTitle:"MediSense চিকিৎসা সহকারী", headerStatus:"অনলাইন — Llama 3.3 (Groq) দ্বারা চালিত",
+      welcomeTitle:"নমস্কার! আজ আমি কীভাবে আপনাকে সাহায্য করতে পারি?",
+      welcomeSubtitle:"আমি আপনার AI স্বাস্থ্য সহকারী। উপসর্গ, ওষুধ, পুষ্টি বা মানসিক স্বাস্থ্য সম্পর্কে জিজ্ঞাসা করুন।",
+      placeholder:"আপনার স্বাস্থ্য সম্পর্কে যেকোনো কিছু জিজ্ঞাসা করুন…",
+      inputHint:"পাঠাতে Enter চাপুন · নতুন লাইনের জন্য Shift+Enter",
+      emergencyText:'জরুরি অবস্থায় <a href="tel:112">112</a> বা <a href="tel:108">108 (অ্যাম্বুলেন্স)</a> এ কল করুন।',
+      topics:[
+        {icon:"🩸",label:"ডায়াবেটিসের লক্ষণ",q:"ডায়াবেটিসের লক্ষণ কী?"},
+        {icon:"❤️",label:"রক্তচাপ নিয়ন্ত্রণ",q:"স্বাভাবিকভাবে রক্তচাপ কমাব কীভাবে?"},
+        {icon:"🧠",label:"উদ্বেগ ও মানসিক স্বাস্থ্য",q:"আমি খুব উদ্বিগ্ন অনুভব করছি, কী সাহায্য করতে পারে?"},
+        {icon:"🫀",label:"হার্ট অ্যাটাকের লক্ষণ",q:"হার্ট অ্যাটাকের লক্ষণ কী?"},
+        {icon:"😴",label:"ঘুম ও সুস্থতা",q:"আমার কতটুকু ঘুম দরকার?"},
+        {icon:"🩹",label:"প্রাথমিক চিকিৎসা",q:"ক্ষতে প্রাথমিক চিকিৎসা কীভাবে করব?"},
+      ],
+      starters:[
+        {icon:"🌡",label:"জ্বর ও মাথাব্যথা",q:"আমার জ্বর এবং মাথাব্যথা আছে, এটি কী হতে পারে?"},
+        {icon:"🩸",label:"ডায়াবেটিস ব্যবস্থাপনা",q:"টাইপ ২ ডায়াবেটিস কীভাবে নিয়ন্ত্রণ করব?"},
+        {icon:"😴",label:"মানসিক চাপ ও ঘুম",q:"আমার মানসিক চাপ আছে এবং ঘুম হচ্ছে না, কী করব?"},
+      ]
+    }
+  },
+  {
+    code:'ta', name:'Tamil', nativeName:'தமிழ்', flag:'🇮🇳', rtl:false,
+    fontFamily:"'Noto Sans Tamil', sans-serif",
+    aiInstruction:"You must respond ONLY in Tamil script. Do not use English except for medical terms when necessary.",
+    ui:{
+      sbTitle:"எதையும் கேளுங்கள்", sbSub:"உங்கள் தனிப்பட்ட AI உடல்நல உதவியாளர் — 24/7 கிடைக்கும்",
+      sbTopicsLabel:"விரைவு தலைப்புகள்", clearBtn:"🗑 உரையாடலை அழி",
+      disclaimerTitle:"⚠️ மருத்துவ மறுப்பு",
+      disclaimerText:"இந்த AI பொதுவான உடல்நல தகவல்களை மட்டுமே வழங்குகிறது, இது தொழில்முறை மருத்துவ ஆலோசனைக்கு மாற்றாக இல்லை.",
+      headerTitle:"MediSense மருத்துவ உதவியாளர்", headerStatus:"ஆன்லைன் — Llama 3.3 (Groq) மூலம் இயக்கப்படுகிறது",
+      welcomeTitle:"வணக்கம்! இன்று நான் உங்களுக்கு எப்படி உதவலாம்?",
+      welcomeSubtitle:"நான் உங்கள் AI உடல்நல உதவியாளர். அறிகுறிகள், மருந்துகள், ஊட்டச்சத்து பற்றி கேளுங்கள்.",
+      placeholder:"உங்கள் உடல்நலம் பற்றி எதையும் கேளுங்கள்…",
+      inputHint:"அனுப்ப Enter அழுத்துங்கள் · புதிய வரிக்கு Shift+Enter",
+      emergencyText:'மருத்துவ அவசரநிலையில் <a href="tel:112">112</a> அல்லது <a href="tel:108">108 (ஆம்புலன்ஸ்)</a> அழைக்கவும்.',
+      topics:[
+        {icon:"🩸",label:"நீரிழிவு அறிகுறிகள்",q:"நீரிழிவு நோயின் அறிகுறிகள் என்ன?"},
+        {icon:"❤️",label:"இரத்த அழுத்த குறிப்புகள்",q:"இரத்த அழுத்தை இயற்கையாக குறைப்பது எப்படி?"},
+        {icon:"🧠",label:"கவலை & மன நலம்",q:"நான் மிகவும் கவலைப்படுகிறேன், என்ன உதவும்?"},
+        {icon:"🫀",label:"மாரடைப்பு அறிகுறிகள்",q:"மாரடைப்பின் அறிகுறிகள் என்ன?"},
+        {icon:"😴",label:"தூக்கம் & ஆரோக்கியம்",q:"எனக்கு எவ்வளவு தூக்கம் தேவை?"},
+        {icon:"🩹",label:"முதலுதவி அடிப்படைகள்",q:"காயத்திற்கு முதலுதவி எப்படி செய்வது?"},
+      ],
+      starters:[
+        {icon:"🌡",label:"காய்ச்சல் & தலைவலி",q:"என்னக்கு காய்ச்சல் மற்றும் தலைவலி உள்ளது, என்னாக இருக்கும்?"},
+        {icon:"🩸",label:"நீரிழிவு மேலாண்மை",q:"டைப் 2 நீரிழிவை எப்படி நிர்வகிப்பது?"},
+        {icon:"😴",label:"மன அழுத்தம் & தூக்கம்",q:"மன அழுத்தம் உள்ளது, தூக்கம் வரவில்லை, என்ன செய்வது?"},
+      ]
+    }
+  },
+  {
+    code:'te', name:'Telugu', nativeName:'తెలుగు', flag:'🇮🇳', rtl:false,
+    fontFamily:"'Noto Sans Telugu', sans-serif",
+    aiInstruction:"You must respond ONLY in Telugu script. Do not use English except for medical terms when necessary.",
+    ui:{
+      sbTitle:"ఏదైనా అడగండి", sbSub:"మీ వ్యక్తిగత AI ఆరోగ్య సహాయకుడు — 24/7 అందుబాటులో",
+      sbTopicsLabel:"త్వరిత విషయాలు", clearBtn:"🗑 సంభాషణ తొలగించు",
+      disclaimerTitle:"⚠️ వైద్య నిరాకరణ",
+      disclaimerText:"ఈ AI సాధారణ ఆరోగ్య సమాచారాన్ని మాత్రమే అందిస్తుంది, ఇది వృత్తిపరమైన వైద్య సలహాకు ప్రత్యామ్నాయం కాదు.",
+      headerTitle:"MediSense వైద్య సహాయకుడు", headerStatus:"ఆన్‌లైన్ — Llama 3.3 (Groq) ద్వారా",
+      welcomeTitle:"నమస్కారం! నేను మీకు ఎలా సహాయం చేయగలను?",
+      welcomeSubtitle:"నేను మీ AI ఆరోగ్య సహాయకుడను. లక్షణాలు, మందులు, పోషణ గురించి అడగండి.",
+      placeholder:"మీ ఆరోగ్యం గురించి ఏదైనా అడగండి…",
+      inputHint:"పంపడానికి Enter నొక్కండి · కొత్త వరుసకు Shift+Enter",
+      emergencyText:'వైద్య అత్యవసర పరిస్థితిలో <a href="tel:112">112</a> లేదా <a href="tel:108">108 (అంబులెన్స్)</a> కి కాల్ చేయండి.',
+      topics:[
+        {icon:"🩸",label:"మధుమేహ లక్షణాలు",q:"మధుమేహం యొక్క లక్షణాలు ఏమిటి?"},
+        {icon:"❤️",label:"రక్తపోటు చిట్కాలు",q:"రక్తపోటును సహజంగా తగ్గించడం ఎలా?"},
+        {icon:"🧠",label:"ఆందోళన & మానసిక ఆరోగ్యం",q:"నాకు చాలా ఆందోళనగా ఉంది, ఏమి సహాయపడుతుంది?"},
+        {icon:"🫀",label:"గుండెపోటు సంకేతాలు",q:"గుండెపోటు సంకేతాలు ఏమిటి?"},
+        {icon:"😴",label:"నిద్ర & ఆరోగ్యం",q:"నాకు ఎంత నిద్ర అవసరం?"},
+        {icon:"🩹",label:"ప్రాథమిక చికిత్స",q:"గాయానికి ప్రాథమిక చికిత్స ఎలా చేయాలి?"},
+      ],
+      starters:[
+        {icon:"🌡",label:"జ్వరం & తలనొప్పి",q:"నాకు జ్వరం మరియు తలనొప్పి ఉంది, ఇది ఏమి కావచ్చు?"},
+        {icon:"🩸",label:"మధుమేహ నిర్వహణ",q:"టైప్ 2 మధుమేహాన్ని ఎలా నిర్వహించాలి?"},
+        {icon:"😴",label:"ఒత్తిడి & నిద్ర",q:"నాకు ఒత్తిడిగా ఉంది మరియు నిద్ర పట్టడం లేదు, ఏమి చేయాలి?"},
+      ]
+    }
+  },
+  {
+    code:'mr', name:'Marathi', nativeName:'मराठी', flag:'🇮🇳', rtl:false,
+    fontFamily:"'Noto Sans Devanagari', sans-serif",
+    aiInstruction:"You must respond ONLY in Marathi (Devanagari script). Do not use English except for medical terms when necessary.",
+    ui:{
+      sbTitle:"काहीही विचारा", sbSub:"तुमचा वैयक्तिक AI आरोग्य सहाय्यक — 24/7 उपलब्ध",
+      sbTopicsLabel:"जलद विषय", clearBtn:"🗑 संभाषण साफ करा",
+      disclaimerTitle:"⚠️ वैद्यकीय अस्वीकरण",
+      disclaimerText:"हे AI फक्त सामान्य आरोग्य माहिती देते, हे व्यावसायिक वैद्यकीय सल्ल्याचा पर्याय नाही.",
+      headerTitle:"MediSense वैद्यकीय सहाय्यक", headerStatus:"ऑनलाइन — Llama 3.3 (Groq) द्वारे",
+      welcomeTitle:"नमस्कार! आज मी तुमची कशी मदत करू शकतो?",
+      welcomeSubtitle:"मी तुमचा AI आरोग्य सहाय्यक आहे. लक्षणे, औषधे, पोषण याबद्दल विचारा.",
+      placeholder:"तुमच्या आरोग्याबद्दल काहीही विचारा…",
+      inputHint:"पाठवण्यासाठी Enter दाबा · नवीन ओळीसाठी Shift+Enter",
+      emergencyText:'वैद्यकीय आपत्कालीन परिस्थितीत <a href="tel:112">112</a> किंवा <a href="tel:108">108 (रुग्णवाहिका)</a> वर कॉल करा.',
+      topics:[
+        {icon:"🩸",label:"मधुमेहाची लक्षणे",  q:"मधुमेहाची लक्षणे काय आहेत?"},
+        {icon:"❤️",label:"रक्तदाब टिप्स",     q:"रक्तदाब नैसर्गिकरीत्या कसा कमी करायचा?"},
+        {icon:"🧠",label:"चिंता आणि मानसिक आरोग्य",q:"मला खूप चिंता वाटत आहे, काय मदत करेल?"},
+        {icon:"🫀",label:"हृदयविकाराची चिन्हे",q:"हृदयविकाराची चिन्हे काय आहेत?"},
+        {icon:"😴",label:"झोप आणि आरोग्य",    q:"मला किती झोप हवी?"},
+        {icon:"🩹",label:"प्रथमोपचार",          q:"जखमेवर प्रथमोपचार कसे करायचे?"},
+      ],
+      starters:[
+        {icon:"🌡",label:"ताप आणि डोकेदुखी",q:"मला ताप आणि डोकेदुखी आहे, हे काय असू शकते?"},
+        {icon:"🩸",label:"मधुमेह व्यवस्थापन",q:"टाइप 2 मधुमेह कसा व्यवस्थापित करायचा?"},
+        {icon:"😴",label:"ताण आणि झोप",     q:"मला ताण आहे आणि झोप येत नाही, काय करावे?"},
+      ]
+    }
+  },
+  {
+    code:'kn', name:'Kannada', nativeName:'ಕನ್ನಡ', flag:'🇮🇳', rtl:false,
+    fontFamily:"'Noto Sans Kannada', sans-serif",
+    aiInstruction:"You must respond ONLY in Kannada script. Do not use English except for medical terms when necessary.",
+    ui:{
+      sbTitle:"ಏನಾದರೂ ಕೇಳಿ", sbSub:"ನಿಮ್ಮ ವೈಯಕ್ತಿಕ AI ಆರೋಗ್ಯ ಸಹಾಯಕ — 24/7 ಲಭ್ಯ",
+      sbTopicsLabel:"ತ್ವರಿತ ವಿಷಯಗಳು", clearBtn:"🗑 ಸಂಭಾಷಣೆ ತೆರವು ಮಾಡಿ",
+      disclaimerTitle:"⚠️ ವೈದ್ಯಕೀಯ ನಿರಾಕರಣೆ",
+      disclaimerText:"ಈ AI ಸಾಮಾನ್ಯ ಆರೋಗ್ಯ ಮಾಹಿತಿ ಮಾತ್ರ ಒದಗಿಸುತ್ತದೆ, ಇದು ವೃತ್ತಿಪರ ವೈದ್ಯಕೀಯ ಸಲಹೆಗೆ ಬದಲಿಯಲ್ಲ.",
+      headerTitle:"MediSense ವೈದ್ಯಕೀಯ ಸಹಾಯಕ", headerStatus:"ಆನ್‌ಲೈನ್ — Llama 3.3 (Groq) ಮೂಲಕ",
+      welcomeTitle:"ನಮಸ್ಕಾರ! ಇಂದು ನಾನು ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?",
+      welcomeSubtitle:"ನಾನು ನಿಮ್ಮ AI ಆರೋಗ್ಯ ಸಹಾಯಕ. ರೋಗಲಕ್ಷಣಗಳು, ಔಷಧಿಗಳು, ಪೋಷಣೆ ಬಗ್ಗೆ ಕೇಳಿ.",
+      placeholder:"ನಿಮ್ಮ ಆರೋಗ್ಯದ ಬಗ್ಗೆ ಏನಾದರೂ ಕೇಳಿ…",
+      inputHint:"ಕಳಿಸಲು Enter ಒತ್ತಿ · ಹೊಸ ಸಾಲಿಗೆ Shift+Enter",
+      emergencyText:'ವೈದ್ಯಕೀಯ ತುರ್ತುಸ್ಥಿತಿಯಲ್ಲಿ <a href="tel:112">112</a> ಅಥವಾ <a href="tel:108">108 (ಆಂಬ್ಯುಲೆನ್ಸ್)</a> ಗೆ ಕರೆ ಮಾಡಿ.',
+      topics:[
+        {icon:"🩸",label:"ಮಧುಮೇಹ ಲಕ್ಷಣಗಳು",q:"ಮಧುಮೇಹದ ಲಕ್ಷಣಗಳೇನು?"},
+        {icon:"❤️",label:"ರಕ್ತದೊತ್ತಡ ಸಲಹೆಗಳು",q:"ರಕ್ತದೊತ್ತಡವನ್ನು ನೈಸರ್ಗಿಕವಾಗಿ ಕಡಿಮೆ ಮಾಡುವುದು ಹೇಗೆ?"},
+        {icon:"🧠",label:"ಆತಂಕ & ಮಾನಸಿಕ ಆರೋಗ್ಯ",q:"ನನಗೆ ತುಂಬಾ ಆತಂಕ ಆಗುತ್ತಿದೆ, ಏನು ಸಹಾಯ ಮಾಡಬಹುದು?"},
+        {icon:"🫀",label:"ಹೃದಯಾಘಾತ ಚಿಹ್ನೆಗಳು",q:"ಹೃದಯಾಘಾತದ ಚಿಹ್ನೆಗಳೇನು?"},
+        {icon:"😴",label:"ನಿದ್ರೆ & ಆರೋಗ್ಯ",q:"ನನಗೆ ಎಷ್ಟು ನಿದ್ರೆ ಬೇಕು?"},
+        {icon:"🩹",label:"ಪ್ರಥಮ ಚಿಕಿತ್ಸೆ",q:"ಗಾಯಕ್ಕೆ ಪ್ರಥಮ ಚಿಕಿತ್ಸೆ ಹೇಗೆ ನೀಡುವುದು?"},
+      ],
+      starters:[
+        {icon:"🌡",label:"ಜ್ವರ & ತಲೆನೋವು",q:"ನನಗೆ ಜ್ವರ ಮತ್ತು ತಲೆನೋವು ಇದೆ, ಇದೇನಾಗಿರಬಹುದು?"},
+        {icon:"🩸",label:"ಮಧುಮೇಹ ನಿರ್ವಹಣೆ",q:"ಟೈಪ್ 2 ಮಧುಮೇಹವನ್ನು ಹೇಗೆ ನಿರ್ವಹಿಸುವುದು?"},
+        {icon:"😴",label:"ಒತ್ತಡ & ನಿದ್ರೆ",q:"ನನಗೆ ಒತ್ತಡ ಇದೆ ಮತ್ತು ನಿದ್ರೆ ಬರುತ್ತಿಲ್ಲ, ಏನು ಮಾಡಲಿ?"},
+      ]
+    }
+  },
+  {
+    code:'gu', name:'Gujarati', nativeName:'ગુજરાતી', flag:'🇮🇳', rtl:false,
+    fontFamily:"'Noto Sans Gujarati', sans-serif",
+    aiInstruction:"You must respond ONLY in Gujarati script. Do not use English except for medical terms when necessary.",
+    ui:{
+      sbTitle:"કંઈ પણ પૂછો", sbSub:"તમારો વ્યક્તિગત AI સ્વાસ્થ્ય સહાયક — 24/7 ઉપલબ્ધ",
+      sbTopicsLabel:"ઝડપી વિષયો", clearBtn:"🗑 વાર્તાલાપ સાફ કરો",
+      disclaimerTitle:"⚠️ તબીબી અસ્વીકરણ",
+      disclaimerText:"આ AI ફક્ત સામાન્ય સ્વાસ્થ્ય માહિતી આપે છે, તે વ્યાવસાયિક તબીબી સલાહ નો વિકલ્પ નથી.",
+      headerTitle:"MediSense તબીબી સહાયક", headerStatus:"ઓનલાઈન — Llama 3.3 (Groq) દ્વારા",
+      welcomeTitle:"નમસ્તે! આજે હું તમને કેવી રીતે મદદ કરી શકું?",
+      welcomeSubtitle:"હું તમારો AI સ્વાસ્થ્ય સહાયક છું. લક્ષણો, દવાઓ, પોષણ વિશે પૂછો.",
+      placeholder:"તમારા સ્વાસ્થ્ય વિશે કંઈ પણ પૂછો…",
+      inputHint:"મોકલવા Enter દબાવો · નવી લાઈન માટે Shift+Enter",
+      emergencyText:'તબીબી કટોકટીમાં <a href="tel:112">112</a> અથવા <a href="tel:108">108 (એમ્બ્યુલન્સ)</a> પર ફોન કરો.',
+      topics:[
+        {icon:"🩸",label:"ડાયાબિટીસ ચિહ્નો",q:"ડાયાબિટીસના ચિહ્નો શું છે?"},
+        {icon:"❤️",label:"બ્લડ પ્રેશર ટિપ્સ",q:"બ્લડ પ્રેશર કુદરતી રીતે કેવી રીતે ઘટાડવું?"},
+        {icon:"🧠",label:"ચિંતા & માનસિક સ્વાસ્થ્ય",q:"મને ખૂબ ચિંતા થઈ રહી છે, શું મદદ કરી શકે?"},
+        {icon:"🫀",label:"હૃદય હુમલાના ચિહ્નો",q:"હૃદય હુમલાના ચિહ્નો શું છે?"},
+        {icon:"😴",label:"ઊંઘ & સ્વાસ્થ્ય",q:"મને કેટલી ઊંઘ જોઈએ?"},
+        {icon:"🩹",label:"પ્રાથમિક સારવાર",q:"ઘા પર પ્રાથમિક સારવાર કેવી રીતે આપવી?"},
+      ],
+      starters:[
+        {icon:"🌡",label:"તાવ & માથાનો દુ:ખાવો",q:"મને તાવ અને માથાનો દુ:ખાવો છે, આ શું હોઈ શકે?"},
+        {icon:"🩸",label:"ડાયાબિટીસ વ્યવસ્થાપન",q:"ટાઇપ 2 ડાયાબિટીસ કેવી રીતે સંચાલિત કરવો?"},
+        {icon:"😴",label:"તણાવ & ઊંઘ",q:"મને તણાવ છે અને ઊંઘ નથી આવતી, શું કરવું?"},
+      ]
+    }
+  },
+  {
+    code:'ml', name:'Malayalam', nativeName:'മലയാളം', flag:'🇮🇳', rtl:false,
+    fontFamily:"'Noto Sans Malayalam', sans-serif",
+    aiInstruction:"You must respond ONLY in Malayalam script. Do not use English except for medical terms when necessary.",
+    ui:{
+      sbTitle:"എന്തും ചോദിക്കൂ", sbSub:"നിങ്ങളുടെ വ്യക്തിഗത AI ആരോഗ്യ സഹായി — 24/7 ലഭ്യം",
+      sbTopicsLabel:"വേഗ വിഷയങ്ങൾ", clearBtn:"🗑 സംഭാഷണം മായ്ക്കൂ",
+      disclaimerTitle:"⚠️ വൈദ്യ നിരാകരണം",
+      disclaimerText:"ഈ AI പൊതുവായ ആരോഗ്യ വിവരങ്ങൾ മാത്രം നൽകുന്നു, ഇത് പ്രൊഫഷണൽ വൈദ്യ ഉപദേശത്തിന്റെ പകരമല്ല.",
+      headerTitle:"MediSense വൈദ്യ സഹായി", headerStatus:"ഓൺലൈൻ — Llama 3.3 (Groq) വഴി",
+      welcomeTitle:"നമസ്കാരം! ഇന്ന് ഞാൻ നിങ്ങൾക്ക് എങ്ങനെ സഹായിക്കണം?",
+      welcomeSubtitle:"ഞാൻ നിങ്ങളുടെ AI ആരോഗ്യ സഹായിയാണ്. ലക്ഷണങ്ങൾ, മരുന്നുകൾ, പോഷണം എന്നിവയെക്കുറിച്ച് ചോദിക്കൂ.",
+      placeholder:"നിങ്ങളുടെ ആരോഗ്യത്തെക്കുറിച്ച് എന്തും ചോദിക്കൂ…",
+      inputHint:"അയക്കാൻ Enter അമർത്തൂ · പുതിയ വരിക്ക് Shift+Enter",
+      emergencyText:'വൈദ്യ അടിയന്തരാവസ്ഥയിൽ <a href="tel:112">112</a> അല്ലെങ്കിൽ <a href="tel:108">108 (ആംബുലൻസ്)</a> വിളിക്കൂ.',
+      topics:[
+        {icon:"🩸",label:"പ്രമേഹ ലക്ഷണങ്ങൾ",q:"പ്രമേഹത്തിന്റെ ലക്ഷണങ്ങൾ എന്തൊക്കെ?"},
+        {icon:"❤️",label:"രക്തസമ്മർദ്ദ നുറുങ്ങുകൾ",q:"രക്തസമ്മർദ്ദം സ്വാഭാവികമായി കുറയ്ക്കുന്നത് എങ്ങനെ?"},
+        {icon:"🧠",label:"ഉത്കണ്ഠ & മാനസിക ആരോഗ്യം",q:"എനിക്ക് വളരെ ഉത്കണ്ഠ തോന്നുന്നു, എന്ത് സഹായിക്കും?"},
+        {icon:"🫀",label:"ഹൃദയാഘാത ലക്ഷണങ്ങൾ",q:"ഹൃദയാഘാതത്തിന്റെ ലക്ഷണങ്ങൾ എന്തൊക്കെ?"},
+        {icon:"😴",label:"ഉറക്കം & ആരോഗ്യം",q:"എനിക്ക് എത്ര ഉറക്കം ആവശ്യം?"},
+        {icon:"🩹",label:"പ്രഥമ ചികിത്സ",q:"മുറിവിന് പ്രഥമ ചികിത്സ എങ്ങനെ ചെയ്യണം?"},
+      ],
+      starters:[
+        {icon:"🌡",label:"പനി & തലവേദന",q:"എനിക്ക് പനിയും തലവേദനയും ഉണ്ട്, ഇത് എന്തായിരിക്കും?"},
+        {icon:"🩸",label:"പ്രമേഹ മാനേജ്‌മെന്റ്",q:"ടൈപ്പ് 2 പ്രമേഹം എങ്ങനെ നിയന്ത്രിക്കാം?"},
+        {icon:"😴",label:"സ്ട്രെസ്സ് & ഉറക്കം",q:"എനിക്ക് സ്ട്രെസ്സ് ഉണ്ട്, ഉറക്കം വരുന്നില്ല, എന്ത് ചെയ്യണം?"},
+      ]
+    }
+  },
+  {
+    code:'pa', name:'Punjabi', nativeName:'ਪੰਜਾਬੀ', flag:'🇮🇳', rtl:false,
+    fontFamily:"'Noto Sans Gurmukhi', sans-serif",
+    aiInstruction:"You must respond ONLY in Punjabi (Gurmukhi script). Do not use English except for medical terms when necessary.",
+    ui:{
+      sbTitle:"ਕੁਝ ਵੀ ਪੁੱਛੋ", sbSub:"ਤੁਹਾਡਾ ਨਿੱਜੀ AI ਸਿਹਤ ਸਹਾਇਕ — 24/7 ਉਪਲਬਧ",
+      sbTopicsLabel:"ਤੇਜ਼ ਵਿਸ਼ੇ", clearBtn:"🗑 ਗੱਲਬਾਤ ਸਾਫ਼ ਕਰੋ",
+      disclaimerTitle:"⚠️ ਡਾਕਟਰੀ ਦਾਅਵਾ-ਤਿਆਗ",
+      disclaimerText:"ਇਹ AI ਸਿਰਫ਼ ਆਮ ਸਿਹਤ ਜਾਣਕਾਰੀ ਦਿੰਦਾ ਹੈ, ਇਹ ਪੇਸ਼ੇਵਰ ਡਾਕਟਰੀ ਸਲਾਹ ਦਾ ਬਦਲ ਨਹੀਂ ਹੈ।",
+      headerTitle:"MediSense ਡਾਕਟਰੀ ਸਹਾਇਕ", headerStatus:"ਔਨਲਾਈਨ — Llama 3.3 (Groq) ਦੁਆਰਾ",
+      welcomeTitle:"ਸਤ ਸ੍ਰੀ ਅਕਾਲ! ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕਿਵੇਂ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ?",
+      welcomeSubtitle:"ਮੈਂ ਤੁਹਾਡਾ AI ਸਿਹਤ ਸਹਾਇਕ ਹਾਂ। ਲੱਛਣ, ਦਵਾਈਆਂ, ਪੋਸ਼ਣ ਬਾਰੇ ਪੁੱਛੋ।",
+      placeholder:"ਆਪਣੀ ਸਿਹਤ ਬਾਰੇ ਕੁਝ ਵੀ ਪੁੱਛੋ…",
+      inputHint:"ਭੇਜਣ ਲਈ Enter ਦਬਾਓ · ਨਵੀਂ ਲਾਈਨ ਲਈ Shift+Enter",
+      emergencyText:'ਡਾਕਟਰੀ ਐਮਰਜੈਂਸੀ ਵਿੱਚ <a href="tel:112">112</a> ਜਾਂ <a href="tel:108">108 (ਐਂਬੂਲੈਂਸ)</a> ਤੇ ਕਾਲ ਕਰੋ।',
+      topics:[
+        {icon:"🩸",label:"ਸ਼ੂਗਰ ਦੇ ਲੱਛਣ",q:"ਸ਼ੂਗਰ ਦੇ ਲੱਛਣ ਕੀ ਹਨ?"},
+        {icon:"❤️",label:"ਬਲੱਡ ਪ੍ਰੈਸ਼ਰ ਟਿਪਸ",q:"ਬਲੱਡ ਪ੍ਰੈਸ਼ਰ ਨੂੰ ਕੁਦਰਤੀ ਤਰੀਕੇ ਨਾਲ ਕਿਵੇਂ ਘੱਟ ਕਰੀਏ?"},
+        {icon:"🧠",label:"ਚਿੰਤਾ ਅਤੇ ਮਾਨਸਿਕ ਸਿਹਤ",q:"ਮੈਨੂੰ ਬਹੁਤ ਚਿੰਤਾ ਹੋ ਰਹੀ ਹੈ, ਕੀ ਮਦਦ ਕਰੇਗਾ?"},
+        {icon:"🫀",label:"ਦਿਲ ਦੇ ਦੌਰੇ ਦੇ ਲੱਛਣ",q:"ਦਿਲ ਦੇ ਦੌਰੇ ਦੇ ਲੱਛਣ ਕੀ ਹਨ?"},
+        {icon:"😴",label:"ਨੀਂਦ ਅਤੇ ਸਿਹਤ",q:"ਮੈਨੂੰ ਕਿੰਨੀ ਨੀਂਦ ਚਾਹੀਦੀ ਹੈ?"},
+        {icon:"🩹",label:"ਮੁੱਢਲੀ ਸਹਾਇਤਾ",q:"ਜ਼ਖ਼ਮ 'ਤੇ ਮੁੱਢਲੀ ਸਹਾਇਤਾ ਕਿਵੇਂ ਦੇਣੀ ਹੈ?"},
+      ],
+      starters:[
+        {icon:"🌡",label:"ਬੁਖ਼ਾਰ ਅਤੇ ਸਿਰਦਰਦ",q:"ਮੈਨੂੰ ਬੁਖ਼ਾਰ ਅਤੇ ਸਿਰਦਰਦ ਹੈ, ਇਹ ਕੀ ਹੋ ਸਕਦਾ ਹੈ?"},
+        {icon:"🩸",label:"ਸ਼ੂਗਰ ਪ੍ਰਬੰਧਨ",q:"ਟਾਈਪ 2 ਸ਼ੂਗਰ ਨੂੰ ਕਿਵੇਂ ਕੰਟਰੋਲ ਕਰੀਏ?"},
+        {icon:"😴",label:"ਤਣਾਅ ਅਤੇ ਨੀਂਦ",q:"ਮੈਨੂੰ ਤਣਾਅ ਹੈ ਅਤੇ ਨੀਂਦ ਨਹੀਂ ਆਉਂਦੀ, ਕੀ ਕਰੀਏ?"},
+      ]
+    }
+  },
+  {
+    code:'or', name:'Odia', nativeName:'ଓଡ଼ିଆ', flag:'🇮🇳', rtl:false,
+    fontFamily:"'Sora', sans-serif",
+    aiInstruction:"You must respond ONLY in Odia (Oriya script). Do not use English except for medical terms when necessary.",
+    ui:{
+      sbTitle:"ଯେକୌଣସି ପ୍ରଶ୍ନ କରନ୍ତୁ", sbSub:"ଆପଣଙ୍କ ବ୍ୟକ୍ତିଗତ AI ସ୍ୱାସ୍ଥ୍ୟ ସହାୟକ — 24/7 ଉପଲବ୍ଧ",
+      sbTopicsLabel:"ଶୀଘ୍ର ବିଷୟ", clearBtn:"🗑 ଆଲୋଚନା ଖାଲି କରନ୍ତୁ",
+      disclaimerTitle:"⚠️ ଚିକିତ୍ସା ଅସ୍ୱୀକୃତି",
+      disclaimerText:"ଏହି AI କେବଳ ସାଧାରଣ ସ୍ୱାସ୍ଥ୍ୟ ସୂଚନା ପ୍ରଦାନ କରେ, ଏହା ବୃତ୍ତିଗତ ଚିକିତ୍ସା ପରାମର୍ଶର ବିକଳ୍ପ ନୁହେଁ।",
+      headerTitle:"MediSense ଚିକିତ୍ସା ସହାୟକ", headerStatus:"ଅନ୍‌ଲାଇନ୍ — Llama 3.3 (Groq) ଦ୍ୱାରା",
+      welcomeTitle:"ନମସ୍କାର! ଆଜି ମୁଁ ଆପଣଙ୍କୁ କିପରି ସାହାଯ୍ୟ କରିପାରିବି?",
+      welcomeSubtitle:"ମୁଁ ଆପଣଙ୍କ AI ସ୍ୱାସ୍ଥ୍ୟ ସହାୟକ। ଲକ୍ଷଣ, ଔଷଧ, ପୁଷ୍ଟି ବିଷୟରେ ପ୍ରଶ୍ନ କରନ୍ତୁ।",
+      placeholder:"ଆପଣଙ୍କ ସ୍ୱାସ୍ଥ୍ୟ ବିଷୟରେ ଯାହା ପ୍ରଶ୍ନ ଅଛି ପଚାରନ୍ତୁ…",
+      inputHint:"ପଠାଇବା ପାଇଁ Enter ଦବାନ୍ତୁ · ନୂଆ ଧାଡ଼ି ପାଇଁ Shift+Enter",
+      emergencyText:'ଚିକିତ୍ସା ଜରୁରୀ ଅବସ୍ଥାରେ <a href="tel:112">112</a> ବା <a href="tel:108">108 (ଆମ୍ବୁଲାନ୍ସ)</a> କୁ ଫୋନ କରନ୍ତୁ।',
+      topics:[
+        {icon:"🩸",label:"ମଧୁମେହ ଲକ୍ଷଣ",q:"ମଧୁମେହର ଲକ୍ଷଣ କ'ଣ?"},
+        {icon:"❤️",label:"ରକ୍ତଚାପ ଟିପ୍ସ",q:"ରକ୍ତଚାପ ସ୍ୱାଭାବିକ ଭାବରେ କିପରି କମ୍ କରିବେ?"},
+        {icon:"🧠",label:"ଚିନ୍ତା ଓ ମାନସିକ ସ୍ୱାସ୍ଥ୍ୟ",q:"ମୋର ବହୁତ ଚିନ୍ତା ହୁଏ, କ'ଣ ସାହାଯ୍ୟ କରିବ?"},
+        {icon:"🫀",label:"ହୃଦ୍‌ରୋଗ ଆକ୍ରମଣ",q:"ହୃଦ୍‌ରୋଗ ଆକ୍ରମଣର ଲକ୍ଷଣ କ'ଣ?"},
+        {icon:"😴",label:"ଶୟନ ଓ ସ୍ୱାସ୍ଥ୍ୟ",q:"ମୋର କେତେ ଘୁମ ଦରକାର?"},
+        {icon:"🩹",label:"ପ୍ରାଥମିକ ଚିକିତ୍ସା",q:"ଘା' ପାଇଁ ପ୍ରାଥମିକ ଚିକିତ୍ସା କିପରି କରିବେ?"},
+      ],
+      starters:[
+        {icon:"🌡",label:"ଜ୍ୱର ଓ ମୁଣ୍ଡ ବ୍ୟଥା",q:"ମୋର ଜ୍ୱର ଓ ମୁଣ୍ଡ ବ୍ୟଥା ଅଛି, ଏହା କ'ଣ ହୋଇ ପାରେ?"},
+        {icon:"🩸",label:"ମଧୁମେହ ପରିଚାଳନା",q:"ଟାଇପ 2 ମଧୁମେହ କିପରି ପରିଚାଳନା କରିବେ?"},
+        {icon:"😴",label:"ଚାପ ଓ ଘୁମ",q:"ମୋର ଚାପ ଅଛି ଓ ଘୁମ ହୁଏ ନାହିଁ, କ'ଣ କରିବୁ?"},
+      ]
+    }
+  },
+  {
+    code:'as', name:'Assamese', nativeName:'অসমীয়া', flag:'🇮🇳', rtl:false,
+    fontFamily:"'Noto Sans Bengali', sans-serif",
+    aiInstruction:"You must respond ONLY in Assamese script. Do not use English except for medical terms when necessary.",
+    ui:{
+      sbTitle:"যিকোনো প্ৰশ্ন সোধক", sbSub:"আপোনাৰ ব্যক্তিগত AI স্বাস্থ্য সহায়ক — ২৪/৭ উপলব্ধ",
+      sbTopicsLabel:"দ্ৰুত বিষয়", clearBtn:"🗑 কথোপকথন পৰিষ্কাৰ কৰক",
+      disclaimerTitle:"⚠️ চিকিৎসা অস্বীকাৰ",
+      disclaimerText:"এই AI কেৱল সাধাৰণ স্বাস্থ্য তথ্য প্ৰদান কৰে, এয়া পেছাদাৰী চিকিৎসা পৰামৰ্শৰ বিকল্প নহয়।",
+      headerTitle:"MediSense চিকিৎসা সহায়ক", headerStatus:"অনলাইন — Llama 3.3 (Groq) দ্বাৰা",
+      welcomeTitle:"নমস্কাৰ! আজি মই আপোনাক কেনেকৈ সহায় কৰিব পাৰোঁ?",
+      welcomeSubtitle:"মই আপোনাৰ AI স্বাস্থ্য সহায়ক। লক্ষণ, ঔষধ, পুষ্টি সম্পৰ্কে প্ৰশ্ন কৰক।",
+      placeholder:"আপোনাৰ স্বাস্থ্যৰ বিষয়ে যিকোনো প্ৰশ্ন সোধক…",
+      inputHint:"পঠিয়াবলৈ Enter টিপক · নতুন শাৰীৰ বাবে Shift+Enter",
+      emergencyText:'চিকিৎসা জৰুৰীকালীন অৱস্থাত <a href="tel:112">112</a> বা <a href="tel:108">108 (এম্বুলেন্স)</a> ত ফোন কৰক।',
+      topics:[
+        {icon:"🩸",label:"ডায়েবেটিছৰ লক্ষণ",q:"ডায়েবেটিছৰ লক্ষণবোৰ কি?"},
+        {icon:"❤️",label:"ৰক্তচাপ টিপছ",q:"ৰক্তচাপ স্বাভাৱিকভাৱে কেনেকৈ কমাব?"},
+        {icon:"🧠",label:"উদ্বেগ আৰু মানসিক স্বাস্থ্য",q:"মই বহুত উদ্বিগ্ন অনুভৱ কৰিছোঁ, কি সহায় কৰিব?"},
+        {icon:"🫀",label:"হাৰ্ট এটেকৰ লক্ষণ",q:"হাৰ্ট এটেকৰ লক্ষণ কি?"},
+        {icon:"😴",label:"টোপনি আৰু স্বাস্থ্য",q:"মোৰ কিমান টোপনি লাগে?"},
+        {icon:"🩹",label:"প্ৰাথমিক চিকিৎসা",q:"ক্ষতত প্ৰাথমিক চিকিৎসা কেনেকৈ কৰিব?"},
+      ],
+      starters:[
+        {icon:"🌡",label:"জ্বৰ আৰু মূৰৰ বিষ",q:"মোৰ জ্বৰ আৰু মূৰৰ বিষ আছে, এয়া কি হ'ব পাৰে?"},
+        {icon:"🩸",label:"ডায়েবেটিছ পৰিচালনা",q:"টাইপ ২ ডায়েবেটিছ কেনেকৈ পৰিচালনা কৰিব?"},
+        {icon:"😴",label:"মানসিক চাপ আৰু টোপনি",q:"মোৰ মানসিক চাপ আছে আৰু টোপনি নাহে, কি কৰিম?"},
+      ]
+    }
+  },
+  {
+    code:'ur', name:'Urdu', nativeName:'اردو', flag:'🇵🇰', rtl:true,
+    fontFamily:"'Sora', sans-serif",
+    aiInstruction:"You must respond ONLY in Urdu (Nastaliq/Arabic script). Do not use English except for medical terms when necessary.",
+    ui:{
+      sbTitle:"کچھ بھی پوچھیں", sbSub:"آپ کا ذاتی AI صحت معاون — 24/7 دستیاب",
+      sbTopicsLabel:"فوری موضوعات", clearBtn:"🗑 گفتگو صاف کریں",
+      disclaimerTitle:"⚠️ طبی دستبرداری",
+      disclaimerText:"یہ AI صرف عام صحت کی معلومات فراہم کرتا ہے، یہ پیشہ ورانہ طبی مشورے کا متبادل نہیں ہے۔",
+      headerTitle:"MediSense طبی معاون", headerStatus:"آن لائن — Llama 3.3 (Groq) کے ذریعے",
+      welcomeTitle:"السلام علیکم! آج میں آپ کی کیسے مدد کر سکتا ہوں؟",
+      welcomeSubtitle:"میں آپ کا AI صحت معاون ہوں۔ علامات، ادویات، غذائیت کے بارے میں پوچھیں۔",
+      placeholder:"اپنی صحت کے بارے میں کچھ بھی پوچھیں…",
+      inputHint:"بھیجنے کے لیے Enter دبائیں · نئی لائن کے لیے Shift+Enter",
+      emergencyText:'طبی ایمرجنسی میں <a href="tel:112">112</a> یا <a href="tel:108">108 (ایمبولینس)</a> پر کال کریں۔',
+      topics:[
+        {icon:"🩸",label:"ذیابیطس کی علامات",q:"ذیابیطس کی علامات کیا ہیں؟"},
+        {icon:"❤️",label:"بلڈ پریشر ٹپس",q:"بلڈ پریشر کو قدرتی طریقے سے کم کرنے کا طریقہ؟"},
+        {icon:"🧠",label:"پریشانی اور ذہنی صحت",q:"مجھے بہت پریشانی ہو رہی ہے، کیا مدد کر سکتا ہے؟"},
+        {icon:"🫀",label:"دل کے دورے کی علامات",q:"دل کے دورے کی علامات کیا ہیں؟"},
+        {icon:"😴",label:"نیند اور صحت",q:"مجھے کتنی نیند چاہیے؟"},
+        {icon:"🩹",label:"ابتدائی طبی امداد",q:"زخم پر ابتدائی طبی امداد کیسے دیں؟"},
+      ],
+      starters:[
+        {icon:"🌡",label:"بخار اور سر درد",q:"مجھے بخار اور سر درد ہے، یہ کیا ہو سکتا ہے؟"},
+        {icon:"🩸",label:"ذیابیطس انتظام",q:"ٹائپ 2 ذیابیطس کو کیسے کنٹرول کریں؟"},
+        {icon:"😴",label:"تناؤ اور نیند",q:"مجھے تناؤ ہے اور نیند نہیں آتی، کیا کروں؟"},
+      ]
+    }
+  },
+];
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let conversationHistory = [];
+let isLoading = false;
+let currentLang = LANGUAGES[0]; // default English
+
+const EMERGENCY_KEYWORDS = [
+  'chest pain','heart attack',"can't breathe",'difficulty breathing','stroke',
+  'unconscious','not breathing','severe bleeding','suicidal','overdose',
+  'choking','seizure','anaphylaxis','allergic reaction','collapsed',
+  // Hindi
+  'सीने में दर्द','दिल का दौरा','सांस नहीं','बेहोश',
+  // Tamil
+  'நெஞ்சு வலி','மாரடைப்பு',
+  // Telugu
+  'ఛాతీ నొప்పి',
+];
+
+// ═══════════════════════════════════════════════════════════
+// LANGUAGE DROPDOWN — BUILD & TOGGLE
+// ═══════════════════════════════════════════════════════════
+function buildLangDropdown() {
+  const dd = document.getElementById('langDropdown');
+  // clear existing options (keep label)
+  dd.querySelectorAll('.lang-opt').forEach(e => e.remove());
+  LANGUAGES.forEach(lang => {
+    const btn = document.createElement('button');
+    btn.className = 'lang-opt' + (lang.code === currentLang.code ? ' selected' : '');
+    btn.innerHTML = `
+      <span class="lf">${lang.flag}</span>
+      <span class="ln">${lang.name} <small>${lang.nativeName}</small></span>
+      <span class="check">✓</span>
+    `;
+    btn.onclick = () => selectLanguage(lang.code);
+    dd.appendChild(btn);
+  });
+}
+
+function toggleLangDropdown() {
+  const wrap = document.getElementById('langPickerWrap');
+  wrap.classList.toggle('open');
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('langPickerWrap');
+  if (!wrap.contains(e.target)) wrap.classList.remove('open');
+});
+
+function selectLanguage(code) {
+  const lang = LANGUAGES.find(l => l.code === code);
+  if (!lang) return;
+  currentLang = lang;
+  document.getElementById('langPickerWrap').classList.remove('open');
+  applyLanguage(lang);
+  buildLangDropdown();
+}
+
+// ═══════════════════════════════════════════════════════════
+// APPLY LANGUAGE — updates all UI text + font
+// ═══════════════════════════════════════════════════════════
+function applyLanguage(lang) {
+  const ui = lang.ui;
+
+  // RTL
+  document.body.classList.toggle('rtl', lang.rtl);
+  document.documentElement.setAttribute('dir', lang.rtl ? 'rtl' : 'ltr');
+
+  // Nav trigger
+  document.getElementById('triggerFlag').textContent = lang.flag;
+  document.getElementById('triggerName').textContent = lang.name;
+
+  // Header lang badge
+  document.getElementById('hlFlag').textContent = lang.flag;
+  document.getElementById('hlName').textContent = lang.name;
+
+  // Sidebar
+  document.getElementById('sbTitle').textContent      = ui.sbTitle;
+  document.getElementById('sbSub').textContent        = ui.sbSub;
+  document.getElementById('sbTopicsLabel').textContent= ui.sbTopicsLabel;
+  document.getElementById('sbLangBadge').innerHTML    = lang.flag + ' ' + lang.name + ' — ' + lang.nativeName;
+  document.getElementById('disclaimerTitle').textContent = ui.disclaimerTitle;
+  document.getElementById('disclaimerText').textContent  = ui.disclaimerText;
+  document.getElementById('clearBtn').textContent     = ui.clearBtn;
+
+  // Chat header
+  document.getElementById('headerTitle').textContent  = ui.headerTitle;
+  document.getElementById('headerStatus').textContent = ui.headerStatus;
+
+  // Welcome card (if still visible)
+  const wt = document.getElementById('welcomeTitle');
+  const ws = document.getElementById('welcomeSubtitle');
+  if (wt) wt.textContent = ui.welcomeTitle;
+  if (ws) ws.textContent = ui.welcomeSubtitle;
+
+  // Starter chips
+  const sc = document.getElementById('starterChips');
+  if (sc) {
+    sc.innerHTML = '';
+    ui.starters.forEach(s => {
+      const chip = document.createElement('span');
+      chip.className = 'starter-chip';
+      chip.textContent = s.icon + ' ' + s.label;
+      chip.onclick = () => sendQuick(s.q);
+      sc.appendChild(chip);
+    });
+  }
+
+  // Topic buttons
+  const tb = document.getElementById('topicBtns');
+  tb.innerHTML = '';
+  ui.topics.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'topic-btn';
+    btn.innerHTML = `<span class="icon">${t.icon}</span>${t.label}`;
+    btn.onclick = () => sendQuick(t.q);
+    tb.appendChild(btn);
+  });
+
+  // Input placeholder & hint
+  document.getElementById('msgInput').placeholder = ui.placeholder;
+  document.getElementById('inputHint').textContent = ui.inputHint;
+  document.getElementById('emergencyText').innerHTML = ui.emergencyText;
+
+  // Body font
+  document.body.style.fontFamily = lang.fontFamily;
+}
+
+// ═══════════════════════════════════════════════════════════
+// CHAT FUNCTIONS
+// ═══════════════════════════════════════════════════════════
+function getTime() {
+  return new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+}
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight,140)+'px';
+}
+function checkEmergency(text) {
+  const lower = text.toLowerCase();
+  const isEmg = EMERGENCY_KEYWORDS.some(kw => lower.includes(kw));
+  document.getElementById('emergencyBanner').classList.toggle('show', isEmg);
+}
+function handleKey(e) {
+  if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+function scrollToBottom() {
+  const m = document.getElementById('messages');
+  m.scrollTop = m.scrollHeight;
+}
+function removeWelcome() {
+  const wc = document.getElementById('welcomeCard');
+  if (wc) wc.remove();
+}
+
+function addMessage(role, text) {
+  removeWelcome();
+  const container = document.getElementById('messages');
+  const row    = document.createElement('div');
+  row.className= `msg-row ${role}`;
+  const avatar = document.createElement('div');
+  avatar.className = `msg-avatar ${role}`;
+  avatar.textContent = role==='ai' ? '🩺' : '👤';
+  const wrap   = document.createElement('div');
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.style.fontFamily = currentLang.fontFamily;
+  bubble.innerHTML = formatMessage(text);
+  const time   = document.createElement('div');
+  time.className   = 'msg-time';
+  time.textContent = getTime();
+  wrap.appendChild(bubble); wrap.appendChild(time);
+  row.appendChild(avatar); row.appendChild(wrap);
+  container.appendChild(row);
+  scrollToBottom();
+  return bubble;
+}
+
+function formatMessage(text) {
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .replace(/^#{1,3} (.+)$/gm,'<strong>$1</strong>')
+    .replace(/^[\-\*] (.+)$/gm,'<li>$1</li>')
+    .replace(/(<li>[\s\S]*?<\/li>)/g,'<ul>$1</ul>')
+    .replace(/\n\n/g,'</p><p>')
+    .replace(/\n/g,'<br>')
+    .replace(/^(.+)$/s,'<p>$1</p>');
+}
+
+async function sendMessage() {
+  const input = document.getElementById('msgInput');
+  const text  = input.value.trim();
+  if (!text || isLoading) return;
+  input.value = ''; input.style.height = 'auto';
+  document.getElementById('emergencyBanner').classList.remove('show');
+  addMessage('user', text);
+  conversationHistory.push({role:'user', content:text});
+  setLoading(true);
+  try {
+    const res = await fetch('/api/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        messages: conversationHistory,
+        language: currentLang.name,
+        langInstruction: currentLang.aiInstruction
+      })
+    });
+    const data = await res.json();
+    if (data.error) {
+      addMessage('ai','⚠️ Error: '+data.error);
+    } else {
+      addMessage('ai', data.reply);
+      conversationHistory.push({role:'assistant', content:data.reply});
+    }
+  } catch(e) {
+    addMessage('ai','⚠️ Connection error. Please check the Flask server.');
+  } finally {
+    setLoading(false);
+  }
+}
+
+function setLoading(state) {
+  isLoading = state;
+  document.getElementById('sendBtn').disabled = state;
+  document.getElementById('typingIndicator').classList.toggle('visible', state);
+  if (state) scrollToBottom();
+}
+
+function sendQuick(text) {
+  document.getElementById('msgInput').value = text;
+  sendMessage();
+}
+
+function clearChat() {
+  conversationHistory = [];
+  const ui = currentLang.ui;
+  const m  = document.getElementById('messages');
+  m.innerHTML = `
+  <div class="welcome-card" id="welcomeCard">
+    <div class="wicon">🩺</div>
+    <h2 id="welcomeTitle">${ui.welcomeTitle}</h2>
+    <p id="welcomeSubtitle">${ui.welcomeSubtitle}</p>
+    <div class="starter-chips" id="starterChips"></div>
+  </div>`;
+  const sc = document.getElementById('starterChips');
+  ui.starters.forEach(s => {
+    const chip = document.createElement('span');
+    chip.className = 'starter-chip';
+    chip.textContent = s.icon + ' ' + s.label;
+    chip.onclick = () => sendQuick(s.q);
+    sc.appendChild(chip);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+buildLangDropdown();
+applyLanguage(currentLang);
+</script>
+</body>
+</html>

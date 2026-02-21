@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediSense AI – Nearby Hospitals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  :root {
+    --bg:#0a0f1e; --surface:#111827; --card:#161f35;
+    --border:rgba(99,130,255,0.15); --accent:#6382ff;
+    --accent2:#38d9a9; --accent3:#f87171;
+    --text:#e8edf8; --muted:#6b7a9e;
+  }
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:'Sora',sans-serif; min-height:100vh; overflow:hidden; }
+  body::before {
+    content:''; position:fixed; inset:0; z-index:0;
+    background:
+      radial-gradient(ellipse 70% 55% at 0% 0%, rgba(248,113,113,0.12) 0%,transparent 55%),
+      radial-gradient(ellipse 60% 50% at 100% 100%, rgba(99,130,255,0.1) 0%,transparent 55%);
+    pointer-events:none;
+  }
+  nav {
+    position:fixed; top:0; left:0; right:0; z-index:200;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 40px; height:64px;
+    background:rgba(10,15,30,0.92); backdrop-filter:blur(18px);
+    border-bottom:1px solid var(--border);
+  }
+  .logo { font-family:'DM Serif Display',serif; font-size:1.35rem; text-decoration:none; color:var(--text); }
+  .logo span { color:var(--accent); }
+  .nav-links { display:flex; gap:10px; }
+  .nav-btn {
+    display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px;
+    font-family:'Sora',sans-serif; font-size:0.82rem; font-weight:500;
+    cursor:pointer; border:1px solid var(--border); text-decoration:none; transition:all .2s;
+    background:rgba(99,130,255,0.08); color:#8aa3ff;
+  }
+  .nav-btn.green { background:rgba(56,217,169,0.08); color:var(--accent2); }
+  .nav-btn.red   { background:rgba(248,113,113,0.15); color:#fca5a5; border-color:rgba(248,113,113,0.3); }
+  .nav-btn:hover { transform:translateY(-1px); filter:brightness(1.2); }
+
+  .page-wrap {
+    display:grid; grid-template-columns:400px 1fr;
+    height:100vh; padding-top:64px;
+    position:relative; z-index:1;
+  }
+
+  /* ── Left panel ── */
+  .left-panel {
+    background:var(--surface); border-right:1px solid var(--border);
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  .panel-header { padding:24px 22px 18px; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .page-label {
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(248,113,113,0.1); border:1px solid rgba(248,113,113,0.25);
+    color:#fca5a5; font-size:0.72rem; font-weight:600;
+    letter-spacing:.08em; text-transform:uppercase;
+    padding:4px 10px; border-radius:100px; margin-bottom:12px;
+  }
+  .panel-header h1 { font-family:'DM Serif Display',serif; font-size:1.5rem; line-height:1.2; margin-bottom:6px; }
+  .panel-header h1 em { font-style:normal; color:var(--accent3); }
+  .panel-header p { color:var(--muted); font-size:0.78rem; line-height:1.5; }
+
+  .search-area { padding:16px 22px; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .search-row { display:flex; gap:8px; margin-bottom:10px; }
+  .search-input {
+    flex:1; background:var(--card); border:1px solid var(--border);
+    color:var(--text); padding:11px 14px; border-radius:9px;
+    font-family:'Sora',sans-serif; font-size:0.85rem; outline:none; transition:border-color .2s;
+  }
+  .search-input:focus { border-color:var(--accent); }
+  .search-input::placeholder { color:var(--muted); }
+  .btn-search {
+    background:linear-gradient(135deg,var(--accent),#8aa3ff); color:#fff;
+    border:none; border-radius:9px; padding:11px 16px; cursor:pointer;
+    font-size:1rem; transition:all .2s; font-weight:600;
+  }
+  .btn-search:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(99,130,255,0.35); }
+
+  .divider-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .divider-line { flex:1; height:1px; background:var(--border); }
+  .divider-text { color:var(--muted); font-size:0.72rem; font-weight:600; letter-spacing:.05em; }
+
+  .btn-gps {
+    width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
+    background:rgba(248,113,113,0.1); border:1px solid rgba(248,113,113,0.25);
+    color:#fca5a5; border-radius:9px; padding:11px;
+    font-family:'Sora',sans-serif; font-size:0.85rem; font-weight:600;
+    cursor:pointer; transition:all .2s;
+  }
+  .btn-gps:hover { background:rgba(248,113,113,0.2); transform:translateY(-1px); }
+  .btn-gps:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+  .pulse { width:10px; height:10px; border-radius:50%; background:#f87171; animation:pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,0.6)} 50%{box-shadow:0 0 0 6px rgba(248,113,113,0)} }
+
+  .results-list { flex:1; overflow-y:auto; padding:14px; }
+  .results-list::-webkit-scrollbar { width:4px; }
+  .results-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+
+  .status-msg { text-align:center; padding:36px 16px; color:var(--muted); }
+  .status-msg .icon { font-size:2.5rem; margin-bottom:12px; }
+  .status-msg p { font-size:0.83rem; line-height:1.6; }
+  .status-msg strong { color:var(--text); }
+
+  .loading { display:flex; align-items:center; justify-content:center; gap:10px; padding:32px; color:var(--muted); font-size:0.85rem; }
+  .spinner { width:20px; height:20px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  .results-count { font-size:0.73rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.06em; padding:0 0 10px 0; display:block; }
+
+  .hospital-card {
+    background:var(--card); border:1px solid var(--border);
+    border-left:3px solid var(--accent3);
+    border-radius:12px; padding:14px; margin-bottom:10px;
+    cursor:pointer; transition:all .2s; animation:fadeUp .3s ease both;
+  }
+  .hospital-card:hover { border-color:rgba(248,113,113,0.5); transform:translateX(2px); }
+  .hospital-card.active { border-color:var(--accent3); background:#1d1520; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+  .hosp-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:6px; }
+  .hosp-name { font-weight:600; font-size:0.88rem; line-height:1.3; }
+  .dist-badge { background:rgba(99,130,255,0.12); border:1px solid rgba(99,130,255,0.25); color:#8aa3ff; font-size:0.68rem; font-weight:600; padding:2px 8px; border-radius:100px; white-space:nowrap; flex-shrink:0; }
+  .hosp-addr { color:var(--muted); font-size:0.73rem; margin-bottom:8px; line-height:1.4; }
+
+  .hosp-chips { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px; }
+  .chip { display:flex; align-items:center; gap:3px; background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:0.7rem; color:#a0aec0; }
+  .chip.emergency { color:#f87171; border-color:rgba(248,113,113,0.3); background:rgba(248,113,113,0.05); }
+
+  .amb-section { background:rgba(248,113,113,0.06); border:1px solid rgba(248,113,113,0.18); border-radius:8px; padding:8px 10px; }
+  .amb-label { font-size:0.66rem; text-transform:uppercase; letter-spacing:.07em; color:#fca5a5; font-weight:600; margin-bottom:5px; }
+  .amb-numbers { display:flex; flex-wrap:wrap; gap:5px; }
+  .amb-num {
+    display:flex; align-items:center; gap:4px;
+    background:rgba(248,113,113,0.1); border:1px solid rgba(248,113,113,0.2);
+    border-radius:6px; padding:4px 10px; color:#fca5a5; font-size:0.78rem; font-weight:600;
+    text-decoration:none; transition:all .15s;
+  }
+  .amb-num:hover { background:rgba(248,113,113,0.22); }
+
+  /* ── Map ── */
+  #map { width:100%; height:100%; }
+  .leaflet-tile { filter:brightness(0.65) saturate(0.7) hue-rotate(190deg); }
+  .leaflet-popup-content-wrapper {
+    background:var(--card) !important; border:1px solid var(--border) !important;
+    border-radius:10px !important; color:var(--text) !important;
+    font-family:'Sora',sans-serif !important; box-shadow:0 8px 32px rgba(0,0,0,0.5) !important;
+  }
+  .leaflet-popup-tip { background:var(--card) !important; }
+  .popup-name { font-weight:700; font-size:0.88rem; margin-bottom:4px; }
+  .popup-addr { color:var(--muted); font-size:0.75rem; margin-bottom:6px; }
+  .popup-amb { color:#fca5a5; font-size:0.78rem; font-weight:600; }
+
+  /* ── Emergency bar ── */
+  .emergency-bar {
+    position:absolute; bottom:0; left:400px; right:0; z-index:150;
+    background:rgba(10,15,30,0.88); backdrop-filter:blur(12px);
+    border-top:1px solid rgba(248,113,113,0.2);
+    display:flex; align-items:center; justify-content:center; gap:16px;
+    padding:9px 20px; flex-wrap:wrap;
+  }
+  .emergency-bar span { color:#fca5a5; font-size:0.75rem; font-weight:700; letter-spacing:.05em; }
+  .epill {
+    display:flex; align-items:center; gap:5px;
+    background:rgba(248,113,113,0.1); border:1px solid rgba(248,113,113,0.28);
+    border-radius:100px; padding:5px 13px; color:#fca5a5;
+    font-size:0.78rem; font-weight:700; text-decoration:none; transition:all .2s;
+  }
+  .epill:hover { background:rgba(248,113,113,0.22); }
+
+  @media (max-width:768px) {
+    .page-wrap { grid-template-columns:1fr; grid-template-rows:55vh 1fr; overflow:auto; }
+    .left-panel { max-height:55vh; }
+    #map { min-height:45vh; }
+    .emergency-bar { left:0; }
+    nav { padding:0 14px; }
+  }
+</style>
+</head>
+<body>
+<nav>
+  <a href="/" class="logo">Medi<span>Sense</span></a>
+  <div class="nav-links">
+    <a href="/" class="nav-btn">🏠 Symptom Checker</a>
+    <a href="/report" class="nav-btn green">📄 Prescription</a>
+    <a href="/medicine" class="nav-btn green">💊 Medicine</a>
+    <a href="/hospitals" class="nav-btn red">🚑 Hospitals</a>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <!-- Left Panel -->
+  <div class="left-panel">
+    <div class="panel-header">
+      <div class="page-label">🚨 Emergency Finder</div>
+      <h1>Find <em>Hospitals</em> Near You</h1>
+      <p>Real-time hospital finder using OpenStreetMap data. Use GPS or enter any location.</p>
+    </div>
+
+    <div class="search-area">
+      <div class="search-row">
+        <input class="search-input" id="locationInput" type="text"
+               placeholder="Enter city, area, or address…"
+               onkeydown="if(event.key==='Enter') searchByText()">
+        <button class="btn-search" onclick="searchByText()" title="Search">🔍</button>
+      </div>
+      <div class="divider-row">
+        <div class="divider-line"></div>
+        <span class="divider-text">OR</span>
+        <div class="divider-line"></div>
+      </div>
+      <button class="btn-gps" id="gpsBtn" onclick="useGPS()">
+        <div class="pulse"></div>
+        📍 Use My GPS Location
+      </button>
+    </div>
+
+    <div class="results-list" id="resultsList">
+      <div class="status-msg">
+        <div class="icon">🏥</div>
+        <p>Click <strong>"Use My GPS Location"</strong> to instantly find nearby hospitals, or type any city or area above to search manually.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map -->
+  <div style="position:relative">
+    <div id="map"></div>
+    <div class="emergency-bar">
+      <span>🚨 NATIONAL EMERGENCY</span>
+      <a href="tel:112" class="epill">📞 112 — Emergency</a>
+      <a href="tel:108" class="epill">🚑 108 — Ambulance</a>
+      <a href="tel:102" class="epill">🤰 102 — Women &amp; Child</a>
+      <a href="tel:104" class="epill">❤️ 104 — Health Helpline</a>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── Map init ──────────────────────────────────────────────────────────────
+const map = L.map('map', { zoomControl:false }).setView([20.5937, 78.9629], 5);
+L.control.zoom({ position:'topright' }).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom:19, attribution:'© OpenStreetMap contributors'
+}).addTo(map);
+
+const hospitalIcon = L.divIcon({
+  html:`<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#f87171,#fca5a5);display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 14px rgba(248,113,113,0.55);border:2px solid rgba(255,255,255,0.2)">🏥</div>`,
+  className:'', iconSize:[34,34], iconAnchor:[17,34]
+});
+const userIcon = L.divIcon({
+  html:`<div style="width:16px;height:16px;border-radius:50%;background:#6382ff;box-shadow:0 0 0 5px rgba(99,130,255,0.3),0 0 0 10px rgba(99,130,255,0.1);border:2px solid rgba(255,255,255,0.4)"></div>`,
+  className:'', iconSize:[16,16], iconAnchor:[8,8]
+});
+
+let markers=[], userMarker=null;
+function clearMarkers(){ markers.forEach(m=>map.removeLayer(m)); markers=[]; }
+function setUserPin(lat,lng){
+  if(userMarker) map.removeLayer(userMarker);
+  userMarker = L.marker([lat,lng],{icon:userIcon}).addTo(map)
+    .bindPopup('<div style="font-family:Sora,sans-serif;color:#e8edf8;padding:2px"><b>📍 Your Location</b></div>');
+}
+
+// ── GPS ──────────────────────────────────────────────────────────────────
+function useGPS(){
+  if(!navigator.geolocation){ showError("GPS not supported by your browser. Please type a location above."); return; }
+  const btn = document.getElementById('gpsBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="border-color:rgba(248,113,113,0.3);border-top-color:#f87171"></div> Getting location…';
+  showLoading("Getting your GPS location…");
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      btn.disabled = false;
+      btn.innerHTML = '<div class="pulse"></div> 📍 Use My GPS Location';
+      const {latitude:lat, longitude:lng} = pos.coords;
+      setUserPin(lat,lng);
+      map.setView([lat,lng], 14);
+      fetchHospitals(lat, lng);
+    },
+    err => {
+      btn.disabled = false;
+      btn.innerHTML = '<div class="pulse"></div> 📍 Use My GPS Location';
+      let msg = "Location access denied. ";
+      if(err.code===1) msg += "Please allow location permission in your browser settings, then try again.";
+      else if(err.code===2) msg += "GPS signal not available. Try entering your location manually.";
+      else msg += "Try entering your location manually above.";
+      showError(msg);
+    },
+    { timeout:12000, enableHighAccuracy:true }
+  );
+}
+
+// ── Text search → Nominatim geocode ─────────────────────────────────────
+async function searchByText(){
+  const query = document.getElementById('locationInput').value.trim();
+  if(!query){ document.getElementById('locationInput').focus(); return; }
+  showLoading(`Locating "${query}"…`);
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`,
+      { headers:{'Accept-Language':'en'} });
+    const data = await r.json();
+    if(!data.length){ showError(`Could not find "${query}". Try a more specific search like "Chennai, India".`); return; }
+    const {lat, lon} = data[0];
+    setUserPin(parseFloat(lat), parseFloat(lon));
+    map.setView([parseFloat(lat), parseFloat(lon)], 14);
+    fetchHospitals(parseFloat(lat), parseFloat(lon));
+  } catch(e){
+    showError("Geocoding failed. Check your internet connection and try again.");
+  }
+}
+
+// ── Fetch hospitals from Flask backend → Overpass API ───────────────────
+async function fetchHospitals(lat, lng){
+  showLoading("Searching nearby hospitals (up to 15 km)…");
+  clearMarkers();
+  try {
+    const r = await fetch(`/api/hospitals?lat=${lat}&lng=${lng}`);
+    const data = await r.json();
+    if(data.error){ showError("⚠ " + data.error); return; }
+    if(!data.length){
+      showError("No hospitals found within 15 km. Try zooming out or searching a larger area.");
+      return;
+    }
+    renderCards(data);
+    placeMarkers(data, lat, lng);
+  } catch(e){
+    showError("Could not reach the hospital search service. Is your Flask server running?");
+  }
+}
+
+// ── Place map markers ────────────────────────────────────────────────────
+function placeMarkers(hospitals, userLat, userLng){
+  clearMarkers();
+  const bounds = [[userLat, userLng]];
+  hospitals.forEach((h,i) => {
+    if(!h.lat||!h.lng) return;
+    bounds.push([h.lat, h.lng]);
+    const ambHtml = h.ambulance_numbers.map(n=>`<a href="tel:${n}" style="color:#fca5a5;font-weight:700;">${n}</a>`).join(' &nbsp;·&nbsp; ');
+    const m = L.marker([h.lat,h.lng],{icon:hospitalIcon}).addTo(map)
+      .bindPopup(`<div style="font-family:Sora,sans-serif;min-width:180px;">
+        <div class="popup-name">${h.name}</div>
+        <div class="popup-addr">${h.address}</div>
+        <div class="popup-amb">🚑 ${ambHtml || '108'}</div>
+      </div>`);
+    markers.push(m);
+  });
+  if(bounds.length>1) map.fitBounds(bounds, {padding:[50,50]});
+}
+
+// ── Render hospital cards ────────────────────────────────────────────────
+function renderCards(hospitals){
+  const list = document.getElementById('resultsList');
+  list.innerHTML = `<span class="results-count">🏥 ${hospitals.length} hospital${hospitals.length!==1?'s':''} found</span>`;
+
+  hospitals.forEach((h,i) => {
+    const card = document.createElement('div');
+    card.className = 'hospital-card';
+    card.style.animationDelay = (i*0.055)+'s';
+
+    const ambHtml = h.ambulance_numbers.map(n =>
+      `<a href="tel:${n.replace(/\s+/g,'')}" class="amb-num">📞 ${n}</a>`
+    ).join('');
+
+    card.innerHTML = `
+      <div class="hosp-top">
+        <div class="hosp-name">${h.name}</div>
+        <span class="dist-badge">📍 ${h.distance}</span>
+      </div>
+      <div class="hosp-addr">📌 ${h.address}</div>
+      <div class="hosp-chips">
+        ${h.type ? `<span class="chip">🏛 ${h.type}</span>` : ''}
+        ${h.speciality && h.speciality!=='General' ? `<span class="chip">⚕️ ${h.speciality}</span>` : ''}
+        ${h.emergency ? `<span class="chip emergency">🚨 24/7 Emergency</span>` : ''}
+        ${h.phone ? `<span class="chip">📞 ${h.phone}</span>` : ''}
+        ${h.website ? `<span class="chip"><a href="${h.website}" target="_blank" style="color:inherit;text-decoration:none">🌐 Website</a></span>` : ''}
+      </div>
+      <div class="amb-section">
+        <div class="amb-label">🚑 Ambulance / Contact Numbers</div>
+        <div class="amb-numbers">${ambHtml}</div>
+      </div>`;
+
+    card.onclick = () => {
+      document.querySelectorAll('.hospital-card').forEach(c=>c.classList.remove('active'));
+      card.classList.add('active');
+      if(h.lat && h.lng){
+        map.setView([h.lat, h.lng], 16);
+        markers[i]?.openPopup();
+      }
+    };
+    list.appendChild(card);
+  });
+}
+
+// ── UI helpers ───────────────────────────────────────────────────────────
+function showLoading(msg){
+  document.getElementById('resultsList').innerHTML =
+    `<div class="loading"><div class="spinner"></div><span>${msg}</span></div>`;
+}
+function showError(msg){
+  document.getElementById('resultsList').innerHTML =
+    `<div class="status-msg"><div class="icon">⚠️</div><p>${msg}</p></div>`;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediSense AI – Symptom Checker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0a0f1e;
+    --surface:  #111827;
+    --card:     #161f35;
+    --border:   rgba(99,130,255,0.15);
+    --accent:   #6382ff;
+    --accent2:  #38d9a9;
+    --accent3:  #f59e0b;
+    --text:     #e8edf8;
+    --muted:    #6b7a9e;
+    --danger:   #f87171;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Background mesh ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 20% -10%, rgba(99,130,255,0.18) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 80% 110%, rgba(56,217,169,0.12) 0%, transparent 55%);
+    pointer-events: none;
+  }
+
+  /* ── Nav ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px;
+    height: 64px;
+    background: rgba(10,15,30,0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.35rem;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  .logo span { color: var(--accent); }
+  .nav-links { display: flex; gap: 10px; }
+  .nav-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    text-decoration: none;
+    transition: all .2s;
+  }
+  .nav-btn.blue  { background: rgba(99,130,255,0.12); color: #8aa3ff; }
+  .nav-btn.green { background: rgba(56,217,169,0.12); color: var(--accent2); }
+  .nav-btn:hover { transform: translateY(-1px); filter: brightness(1.2); }
+
+  /* ── Main layout ── */
+  main {
+    position: relative; z-index: 1;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 120px 24px 80px;
+  }
+
+  .hero-label {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(99,130,255,0.1);
+    border: 1px solid rgba(99,130,255,0.25);
+    color: #8aa3ff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-radius: 100px;
+    margin-bottom: 20px;
+  }
+  .hero-label::before { content: '●'; font-size: 0.5rem; color: var(--accent2); }
+
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2rem, 5vw, 2.8rem);
+    line-height: 1.2;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+  h1 em { font-style: normal; color: var(--accent); }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 36px;
+    max-width: 500px;
+  }
+
+  /* ── Form card ── */
+  .form-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 32px;
+  }
+  .form-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+    display: block;
+  }
+  .input-wrap {
+    position: relative;
+    margin-bottom: 16px;
+  }
+  .input-wrap input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .input-wrap input:focus { border-color: var(--accent); }
+  .input-wrap input::placeholder { color: var(--muted); }
+
+  /* pill suggestions */
+  .pill-row {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;
+  }
+  .pill {
+    padding: 5px 12px;
+    border-radius: 100px;
+    background: rgba(99,130,255,0.08);
+    border: 1px solid rgba(99,130,255,0.2);
+    color: #8aa3ff;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .pill:hover { background: rgba(99,130,255,0.2); }
+
+  .submit-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--accent), #8aa3ff);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Sora', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    letter-spacing: .02em;
+  }
+  .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(99,130,255,0.35); }
+
+  /* ── Results ── */
+  .result-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 20px;
+  }
+  .result-header h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.4rem;
+    color: var(--text);
+  }
+  .badge-matched {
+    background: rgba(56,217,169,0.12);
+    border: 1px solid rgba(56,217,169,0.3);
+    color: var(--accent2);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 100px;
+  }
+
+  .result-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+    transition: border-color .2s;
+    animation: fadeUp .4s ease both;
+  }
+  .result-card:nth-child(2) { animation-delay: .05s; }
+  .result-card:nth-child(3) { animation-delay: .1s; }
+  .result-card:hover { border-color: rgba(99,130,255,0.35); }
+  @keyframes fadeUp {
+    from { opacity:0; transform: translateY(14px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+
+  .rank-1 { border-left: 3px solid var(--accent); }
+  .rank-2 { border-left: 3px solid var(--accent2); }
+  .rank-3 { border-left: 3px solid var(--accent3); }
+
+  .disease-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+  }
+  .disease-name {
+    font-weight: 600; font-size: 1rem; color: var(--text);
+  }
+  .prob-badge {
+    font-size: 0.85rem; font-weight: 700;
+    padding: 3px 10px; border-radius: 100px;
+  }
+  .rank-1 .prob-badge { background: rgba(99,130,255,0.15); color: #8aa3ff; }
+  .rank-2 .prob-badge { background: rgba(56,217,169,0.15); color: var(--accent2); }
+  .rank-3 .prob-badge { background: rgba(245,158,11,0.15); color: var(--accent3); }
+
+  .progress {
+    height: 6px; background: rgba(255,255,255,0.07); border-radius: 10px;
+    margin-bottom: 16px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; border-radius: 10px;
+    transition: width 1s cubic-bezier(.4,0,.2,1);
+  }
+  .rank-1 .progress-fill { background: linear-gradient(90deg, var(--accent), #8aa3ff); }
+  .rank-2 .progress-fill { background: linear-gradient(90deg, var(--accent2), #5eeac9); }
+  .rank-3 .progress-fill { background: linear-gradient(90deg, var(--accent3), #fcd34d); }
+
+  .desc-text {
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 1.6;
+    margin-bottom: 14px;
+  }
+
+  .info-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;
+  }
+  .info-block {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .info-block .lbl {
+    font-size: 0.68rem; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--muted); font-weight: 600; margin-bottom: 4px;
+  }
+  .info-block .val {
+    font-size: 0.88rem; color: var(--text); font-weight: 500;
+  }
+
+  .precaution-list {
+    list-style: none;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  }
+  .precaution-list li {
+    display: flex; align-items: flex-start; gap: 6px;
+    font-size: 0.8rem; color: #a0aec0;
+    background: var(--surface); padding: 8px 10px; border-radius: 7px;
+  }
+  .precaution-list li::before { content: '✓'; color: var(--accent2); flex-shrink: 0; }
+
+  /* ── Disclaimer ── */
+  .disclaimer {
+    margin-top: 28px;
+    background: rgba(248,113,113,0.07);
+    border: 1px solid rgba(248,113,113,0.2);
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 0.78rem;
+    color: #fc9a9a;
+    line-height: 1.6;
+  }
+  .disclaimer strong { color: var(--danger); }
+
+  .reset-btn {
+    display: block; width: 100%; margin-top: 20px;
+    padding: 12px; background: transparent;
+    border: 1px solid var(--border); border-radius: 10px;
+    color: var(--muted); font-family: 'Sora', sans-serif;
+    font-size: 0.85rem; cursor: pointer; transition: all .2s;
+  }
+  .reset-btn:hover { background: var(--card); color: var(--text); }
+
+  /* ── footer ── */
+  footer {
+    position: relative; z-index: 1;
+    text-align: center; padding: 20px;
+    color: var(--muted); font-size: 0.75rem;
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Medi<span>Sense</span></div>
+  <div class="nav-links">
+    <a href="/report" class="nav-btn blue">📄 Prescription Analyser</a>
+    <a href="/medicine" class="nav-btn green">💊 Medicine Analyser</a>
+    <a href="/hospitals" class="nav-btn" style="background:rgba(248,113,113,0.08);color:#fca5a5;border-color:rgba(248,113,113,0.2);">🚑 Hospitals</a>
+    <a href="/chat" class="nav-btn" style="background:rgba(56,217,169,0.08);color:#38d9a9;border-color:rgba(56,217,169,0.2);">🤖 AI Chat</a>
+  </div>
+</nav>
+
+<main>
+  <div class="hero-label">AI-Powered Health Assistant</div>
+  <h1>Check Your <em>Symptoms</em>,<br>Get Smart Insights</h1>
+  <p class="subtitle">Enter your symptoms below and our ML model will predict possible conditions, suggest medicines, and recommend precautions. Always consult a doctor for diagnosis.</p>
+
+  <div class="form-card">
+    <label class="form-label">Common symptoms (click to add)</label>
+    <div class="pill-row" id="pillRow">
+      <span class="pill" onclick="addSymptom('fever')">🌡 Fever</span>
+      <span class="pill" onclick="addSymptom('headache')">🤕 Headache</span>
+      <span class="pill" onclick="addSymptom('cough')">😷 Cough</span>
+      <span class="pill" onclick="addSymptom('fatigue')">😴 Fatigue</span>
+      <span class="pill" onclick="addSymptom('vomiting')">🤢 Vomiting</span>
+      <span class="pill" onclick="addSymptom('itching')">🦟 Itching</span>
+      <span class="pill" onclick="addSymptom('skin_rash')">🩹 Skin Rash</span>
+      <span class="pill" onclick="addSymptom('chest_pain')">💔 Chest Pain</span>
+    </div>
+
+    <form method="POST">
+      <label class="form-label" for="symptomsInput">Your symptoms</label>
+      <div class="input-wrap">
+        <input id="symptomsInput" type="text" name="symptoms"
+               placeholder="e.g. fever, headache, fatigue"
+               value="{{ request.form.get('symptoms', '') }}" required>
+      </div>
+      <button type="submit" class="submit-btn">🔍 Analyse Symptoms</button>
+    </form>
+  </div>
+
+  {% if prediction %}
+  <div class="result-header">
+    <h2>Prediction Results</h2>
+    {% if matched %}
+    <span class="badge-matched">{{ matched|length }} symptom{{ 's' if matched|length != 1 }} matched</span>
+    {% endif %}
+  </div>
+
+  {% for item in prediction %}
+  <div class="result-card rank-{{ loop.index }}">
+    <div class="disease-row">
+      <span class="disease-name">{{ item.disease }}</span>
+      <span class="prob-badge">{{ item.probability }}%</span>
+    </div>
+    <div class="progress">
+      <div class="progress-fill" style="width: {{ item.probability }}%"></div>
+    </div>
+
+    {% if item.description %}
+    <p class="desc-text">{{ item.description }}</p>
+    {% endif %}
+
+    <div class="info-row">
+      <div class="info-block">
+        <div class="lbl">💊 Suggested Medicine</div>
+        <div class="val">{{ item.medicine }}</div>
+      </div>
+      <div class="info-block">
+        <div class="lbl">📊 Confidence</div>
+        <div class="val">{{ item.probability }}% probability</div>
+      </div>
+    </div>
+
+    <div class="info-block" style="margin-bottom:0">
+      <div class="lbl">🩺 Precautions</div>
+      <ul class="precaution-list" style="margin-top:8px">
+        {% for p in item.precaution %}
+        <li>{{ p }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="disclaimer">
+    <strong>⚠ Medical Disclaimer:</strong> These results are generated by an AI model and are for informational purposes only. They do not constitute medical advice, diagnosis, or treatment. Please consult a qualified healthcare professional.
+  </div>
+
+  <form method="GET"><button type="submit" class="reset-btn">↺ Check Again</button></form>
+  {% endif %}
+</main>
+
+<footer>MediSense AI · For informational use only · Not a substitute for professional medical advice</footer>
+
+<script>
+function addSymptom(s) {
+  const inp = document.getElementById('symptomsInput');
+  const current = inp.value.trim();
+  if (!current) { inp.value = s; return; }
+  const parts = current.split(',').map(x => x.trim());
+  if (!parts.includes(s)) { inp.value = [...parts, s].join(', '); }
+}
+</script>
+</body>
+</html>

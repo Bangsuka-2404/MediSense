@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediSense AI – Prescription Analyser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0f1e; --surface:#111827; --card:#161f35;
+    --border:rgba(99,130,255,0.15); --accent:#6382ff;
+    --accent2:#38d9a9; --text:#e8edf8; --muted:#6b7a9e;
+  }
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    background:var(--bg); color:var(--text);
+    font-family:'Sora',sans-serif; min-height:100vh; overflow-x:hidden;
+  }
+  body::before {
+    content:''; position:fixed; inset:0; z-index:0;
+    background:
+      radial-gradient(ellipse 70% 50% at 10% 0%, rgba(99,130,255,0.15) 0%,transparent 55%),
+      radial-gradient(ellipse 60% 50% at 90% 100%, rgba(56,217,169,0.1) 0%,transparent 55%);
+    pointer-events:none;
+  }
+  nav {
+    position:fixed; top:0; left:0; right:0; z-index:100;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 40px; height:64px;
+    background:rgba(10,15,30,0.85); backdrop-filter:blur(16px);
+    border-bottom:1px solid var(--border);
+  }
+  .logo { font-family:'DM Serif Display',serif; font-size:1.35rem; }
+  .logo span { color:var(--accent); }
+  .nav-links { display:flex; gap:10px; }
+  .nav-btn {
+    display:flex; align-items:center; gap:6px;
+    padding:8px 16px; border-radius:8px;
+    font-family:'Sora',sans-serif; font-size:0.82rem; font-weight:500;
+    cursor:pointer; border:1px solid var(--border);
+    text-decoration:none; transition:all .2s;
+    background:rgba(99,130,255,0.08); color:#8aa3ff;
+  }
+  .nav-btn.green { background:rgba(56,217,169,0.08); color:var(--accent2); }
+  .nav-btn:hover { transform:translateY(-1px); filter:brightness(1.2); }
+
+  main {
+    position:relative; z-index:1;
+    max-width:680px; margin:0 auto;
+    padding:110px 24px 80px;
+  }
+  .page-label {
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(99,130,255,0.1); border:1px solid rgba(99,130,255,0.25);
+    color:#8aa3ff; font-size:0.75rem; font-weight:600;
+    letter-spacing:.08em; text-transform:uppercase;
+    padding:5px 12px; border-radius:100px; margin-bottom:18px;
+  }
+  h1 { font-family:'DM Serif Display',serif; font-size:clamp(1.8rem,4vw,2.4rem); margin-bottom:10px; }
+  h1 em { font-style:normal; color:var(--accent2); }
+  .subtitle { color:var(--muted); font-size:0.9rem; line-height:1.6; margin-bottom:32px; }
+
+  /* Upload zone */
+  .upload-zone {
+    border:2px dashed rgba(99,130,255,0.3);
+    border-radius:16px; padding:48px 24px;
+    text-align:center; cursor:pointer;
+    background:rgba(99,130,255,0.03);
+    transition:all .2s; position:relative; margin-bottom:20px;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color:var(--accent); background:rgba(99,130,255,0.07); }
+  .upload-zone input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+  .upload-icon { font-size:2.5rem; margin-bottom:12px; }
+  .upload-zone h3 { font-size:1rem; font-weight:600; margin-bottom:6px; }
+  .upload-zone p { color:var(--muted); font-size:0.82rem; }
+  .file-list { margin-top:12px; display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
+  .file-chip {
+    background:rgba(56,217,169,0.1); border:1px solid rgba(56,217,169,0.25);
+    color:var(--accent2); font-size:0.75rem; padding:4px 10px; border-radius:100px;
+  }
+
+  .submit-btn {
+    width:100%; padding:14px;
+    background:linear-gradient(135deg,var(--accent2),#5eeac9);
+    color:#0a2e25; border:none; border-radius:10px;
+    font-family:'Sora',sans-serif; font-size:0.95rem; font-weight:700;
+    cursor:pointer; transition:all .2s;
+  }
+  .submit-btn:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(56,217,169,0.3); }
+
+  /* Results */
+  .results-header { display:flex; align-items:center; gap:10px; margin:32px 0 18px; }
+  .results-header h2 { font-family:'DM Serif Display',serif; font-size:1.35rem; }
+  .count-badge {
+    background:rgba(56,217,169,0.12); border:1px solid rgba(56,217,169,0.3);
+    color:var(--accent2); font-size:0.72rem; font-weight:600;
+    padding:3px 10px; border-radius:100px;
+  }
+
+  .med-card {
+    background:var(--card); border:1px solid var(--border);
+    border-left:3px solid var(--accent2);
+    border-radius:14px; padding:22px; margin-bottom:14px;
+    animation:fadeUp .35s ease both;
+  }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  .med-name { font-weight:700; font-size:1.05rem; margin-bottom:12px; }
+  .med-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .med-item { background:var(--surface); border-radius:8px; padding:10px 12px; }
+  .med-item .lbl { font-size:0.67rem; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); font-weight:600; margin-bottom:4px; }
+  .med-item .val { font-size:0.85rem; color:var(--text); font-weight:500; }
+
+  .disclaimer {
+    margin-top:24px; background:rgba(248,113,113,0.07);
+    border:1px solid rgba(248,113,113,0.2); border-radius:10px;
+    padding:14px 16px; font-size:0.78rem; color:#fc9a9a; line-height:1.6;
+  }
+  .back-btn {
+    display:block; width:100%; margin-top:18px;
+    padding:12px; background:transparent;
+    border:1px solid var(--border); border-radius:10px;
+    color:var(--muted); font-family:'Sora',sans-serif;
+    font-size:0.85rem; cursor:pointer; transition:all .2s; text-align:center; text-decoration:none;
+  }
+  .back-btn:hover { background:var(--card); color:var(--text); }
+
+  footer { position:relative; z-index:1; text-align:center; padding:20px; color:var(--muted); font-size:0.75rem; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Medi<span>Sense</span></div>
+  <div class="nav-links">
+    <a href="/" class="nav-btn">🏠 Symptom Checker</a>
+    <a href="/medicine" class="nav-btn green">💊 Medicine Analyser</a>
+    <a href="/hospitals" class="nav-btn" style="background:rgba(248,113,113,0.08);color:#fca5a5;border-color:rgba(248,113,113,0.2);">🚑 Hospitals</a>
+    <a href="/chat" class="nav-btn" style="background:rgba(56,217,169,0.08);color:#38d9a9;border-color:rgba(56,217,169,0.2);">🤖 AI Chat</a>
+  </div>
+</nav>
+
+<main>
+  <div class="page-label">OCR + AI Analysis</div>
+  <h1>Prescription <em>Analyser</em></h1>
+  <p class="subtitle">Upload your prescriptions (images or PDFs) and we'll identify medicines, dosages, and schedules automatically.</p>
+
+  <form method="POST" enctype="multipart/form-data">
+    <div class="upload-zone" id="dropZone">
+      <input type="file" name="report" multiple accept=".jpg,.jpeg,.png,.pdf" id="fileInput">
+      <div class="upload-icon">📄</div>
+      <h3>Drop prescription here or click to browse</h3>
+      <p>Supports JPG, PNG, PDF · Multiple files allowed</p>
+      <div class="file-list" id="fileList"></div>
+    </div>
+    <button type="submit" class="submit-btn">🔍 Analyse Prescription</button>
+  </form>
+
+  {% if analysis %}
+  <div class="results-header">
+    <h2>Medicine Schedule</h2>
+    <span class="count-badge">{{ analysis|length }} detected</span>
+  </div>
+
+  {% for med in analysis %}
+  <div class="med-card" style="animation-delay:{{ loop.index0 * 0.06 }}s">
+    <div class="med-name">💊 {{ med.name }}</div>
+    <div class="med-grid">
+      <div class="med-item"><div class="lbl">Dosage</div><div class="val">{{ med.dosage }}</div></div>
+      <div class="med-item"><div class="lbl">When to take</div><div class="val">{{ med.timing }}</div></div>
+      <div class="med-item"><div class="lbl">Used for</div><div class="val">{{ med.used_for }}</div></div>
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="disclaimer">⚠ <strong>Disclaimer:</strong> This analysis is AI-generated and may not be fully accurate. Always follow your doctor's instructions and consult a pharmacist for dosage guidance.</div>
+  {% endif %}
+
+  <a href="/" class="back-btn">← Back to Symptom Checker</a>
+</main>
+
+<footer>MediSense AI · For informational use only · Not a substitute for professional medical advice</footer>
+
+<script>
+const input = document.getElementById('fileInput');
+const list  = document.getElementById('fileList');
+const zone  = document.getElementById('dropZone');
+
+input.addEventListener('change', () => {
+  list.innerHTML = '';
+  [...input.files].forEach(f => {
+    const chip = document.createElement('span');
+    chip.className = 'file-chip';
+    chip.textContent = f.name;
+    list.appendChild(chip);
+  });
+});
+
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag');
+  input.files = e.dataTransfer.files;
+  input.dispatchEvent(new Event('change'));
+});
+</script>
+</body>
+</html>
